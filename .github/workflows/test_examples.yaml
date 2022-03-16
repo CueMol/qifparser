@@ -1,0 +1,17 @@
+name: Test examples
+
+on:
+  pull_request:
+    types: [ready_for_review, synchronize]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: 3.8
+
+jobs:
+  run-test-examples:
+    name: "Linux latest ubuntu"
+    runs-on: ubuntu-latest
+    steps:
+      - name: execute echo command
+        run: echo "Hello World!"

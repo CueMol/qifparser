@@ -1,10 +1,10 @@
 from lark import Transformer
+from lark import Lark
 
 import argparse
 from pathlib import Path
 
 # import sys
-# from lark import Lark
 # from functools import reduce
 
 
@@ -44,10 +44,10 @@ def main():
         text = f.read()
     print(f"{text=}")
     print(f"{_LARK_PARSER=}")
-    # with open("./test1.lark", encoding="utf-8") as grammar:
-    #     parser = Lark(grammar.read(), start="start")
-    #     tree = parser.parse(text)
-    #     print(tree.pretty())
+
+    parser = Lark(_LARK_PARSER.read(), start="start")
+    tree = parser.parse(text)
+    print(tree.pretty())
     #     result = CalcTransformer().transform(tree)
     #     # print(result)
 
