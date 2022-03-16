@@ -1,0 +1,20 @@
+// comment
+
+include <qlib/Vector.qif>;
+include "Camera.qif";
+
+runtime_class View
+{
+    client_hdr "View.hpp";
+    client_name qsys::View;
+
+    scriptable;
+    abstract;
+    smartptr;
+
+  ///////////////////////////////////////
+  // view properties
+
+  property string name => redirect(getName, setName);
+
+};
