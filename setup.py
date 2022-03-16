@@ -33,4 +33,10 @@ setup(
     packages=find_packages(exclude=("tests", "docs")),
     install_requires=install_requires,
     extras_require={"dev": dev_requires},
+    entry_points={
+        'console_scripts':[
+            'qifparser = qifparser.main:main',
+        ],
+    },
+
 )
