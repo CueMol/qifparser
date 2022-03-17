@@ -1,0 +1,16 @@
+// import "qlib/Vector.qif";
+// import "qlib/Quat.qif";
+// import "Scene.qif";
+
+runtime_class Camera
+{
+  client_hdr "Camera.hpp";
+  client_name qsys::Camera;
+
+  scriptable;
+  cloneable;
+  smartptr;
+
+  /// Name of the camera
+  property string name => redirect(getName, setName);
+};

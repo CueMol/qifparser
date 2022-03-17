@@ -1,7 +1,7 @@
 // comment
 
-include <qlib/Vector.qif>;
-include "Camera.qif";
+import "qlib/Vector.qidl";
+import "Camera.qidl";
 
 runtime_class View
 {

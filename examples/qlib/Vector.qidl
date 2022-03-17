@@ -1,0 +1,15 @@
+runtime_class Vector
+{
+    client_hdr "LScrVector4D.hpp";
+    client_name qlib::LScrVector4D;
+
+    scriptable;
+    cloneable;
+    smartptr;
+
+    // properties
+    property real x => redirect(getX, setX);
+    property real y => redirect(getY, setY);
+    property real z => redirect(getZ, setZ);
+    property real w => redirect(getW, setW);
+};

@@ -1,8 +1,8 @@
-from lark import Transformer
 from lark import Lark
 
 import argparse
 from pathlib import Path
+from qifparser.tree_xform import TreeXform
 
 # import sys
 # from functools import reduce
@@ -10,17 +10,6 @@ from pathlib import Path
 
 _here = Path(__file__).parent
 _LARK_PARSER = open(_here / "grammer.lark", encoding="utf-8")
-
-
-class CalcTransformer(Transformer):
-    def __init__(self, include_path=None):
-        if include_path is not None:
-            self.include_path = []
-        else:
-            self.include_path = include_path
-
-    def include_stmt(self, tree):
-        print(f"include_stmt: {tree}")
 
 
 def create_parser():
@@ -40,7 +29,9 @@ def main():
     print(f"{args.input=}")
     print(f"{args.output=}")
     print(f"{args.include=}")
-    with open(args.input, "r") as f:
+    input_path = Path(args.input)
+    input_dir = input_path.parent
+    with input_path.open("r") as f:
         text = f.read()
     print(f"{text=}")
     print(f"{_LARK_PARSER=}")
@@ -48,8 +39,9 @@ def main():
     parser = Lark(_LARK_PARSER.read(), start="start")
     tree = parser.parse(text)
     print(tree.pretty())
-    #     result = CalcTransformer().transform(tree)
-    #     # print(result)
+
+    result = TreeXform(input_dir=input_dir, include_paths=args.include).transform(tree)
+    print(result)
 
 
 if __name__ == "__main__":

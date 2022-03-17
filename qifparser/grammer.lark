@@ -15,7 +15,7 @@ class_stmt: client_header_stmt SEP
 
 client_header_stmt: "client_hdr" ESCAPED_STRING
 client_name_stmt: "client_name" CXX_NAME
-attribute_stmt: ("scriptable" | "abstract" | "smartptr")
+attribute_stmt: ("scriptable" | "abstract" | "smartptr" | "cloneable")
 
 /////
 
@@ -26,9 +26,7 @@ setter_name: IDENT
 
 /////
 
-include_stmt: "include" (local_file_spec|global_file_spec)
-local_file_spec: "\"" FILE_PATH "\""
-global_file_spec: "<" FILE_PATH ">"
+include_stmt: "import" "\"" FILE_PATH "\""
 
 /////
 
@@ -36,7 +34,7 @@ FILE_PATH: /[_0-9a-zA-Z\/\.]+/
 IDENT: CNAME
 SEP: ";"
 CXX_NAME: CNAME ("::" CNAME)*
-TYPE_NAME: ("string" | "integer" | "boolean")
+TYPE_NAME: ("string" | "real" | "integer" | "boolean")
 
 COMMENT: "//" /[^\n]*/ NEWLINE
 
