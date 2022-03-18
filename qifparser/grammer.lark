@@ -24,27 +24,33 @@ extn_clause: "extends" IDENT
 
 client_header_stmt: "client_hdr" ESCAPED_STRING
 client_name_stmt: "client_name" CXX_NAME
-attribute_stmt: scriptable | abstract | smartptr | cloneable
-scriptable: "scriptable"
-abstract: "abstract"
-smartptr: "smartptr"
-cloneable: "cloneable"
+attribute_stmt: "scriptable" -> scriptable
+              | "abstract" -> abstract
+              | "smartptr" -> smartptr
+              | "cloneable" -> cloneable
 
 /////
 // PROPERTY
 
-property_stmt: "property" type_name IDENT (prop_redirect_clause | prop_access_clause)? prop_modif?
+property_stmt: "property" property_type property_name (prop_redirect_clause | prop_access_clause)? ("(" prop_modif_list ")")?
+property_type: type_name
+property_name: IDENT
 prop_access_clause: "=>" CXX_NAME
 prop_redirect_clause: "=>" "redirect" "(" getter_name "," setter_name ")"
 
 getter_name: IDENT
 setter_name: IDENT
-prop_modif: "(" ("readonly" | "nopersist") ")"
+prop_modif_list: prop_modif ("," prop_modif)*
+prop_modif: "readonly" -> readonly
+          | "nopersist" -> nopersist
+
 
 /////
 // METHOD
 
-method_stmt: type_name IDENT "(" method_arg_list? ")" mth_redirect_clause?
+method_stmt: return_type method_name "(" method_arg_list? ")" mth_redirect_clause?
+return_type: type_name
+method_name: IDENT
 mth_redirect_clause: "=>" CXX_NAME
 method_arg_list: method_arg ("," method_arg)*
 method_arg: type_name IDENT?
@@ -52,9 +58,12 @@ method_arg: type_name IDENT?
 /////
 // ENUMDEF
 
-enumdef_stmt: "enumdef" IDENT "{" enum_decl_stmt+ "}"
+enumdef_stmt: "enumdef" enum_name "{" enum_decl_stmt+ "}"
 
-enum_decl_stmt: IDENT "=" CXX_NAME SEP
+enum_name: IDENT
+enum_decl_stmt: enum_key "=" enum_cxx_def SEP
+enum_key: IDENT
+enum_cxx_def: CXX_NAME
 
 /////
 // IMPORT statement
@@ -74,9 +83,17 @@ mod_load_opt: "uuid" UUID_TOKEN
 /////
 // TYPE token
 
-type_name: ("enum" | "string" | "real" | "integer" | "boolean" | "void" | object_type_name)
-object_type_name: "object" "<" object_type_spec ">"
-object_type_spec: IDENT | IDENT "$"
+type_name: enum | string | real | integer | boolean | void | object_type_name
+enum: "enum"
+string: "string"
+real: "real"
+integer: "integer"
+boolean: "boolean"
+void: "void"
+
+object_type_name: "object" "<" (object_type_spec|object_reftype_spec) ">"
+object_type_spec: IDENT
+object_reftype_spec: IDENT "$"
 
 /////
 

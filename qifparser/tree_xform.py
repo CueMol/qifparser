@@ -1,8 +1,8 @@
-from lark import Transformer
+from lark import Transformer, Token
 from pathlib import Path
 
 from qifparser.parser import parse_file
-from qifparser.class_def import ClassDef
+from qifparser.class_def import ClassDef, PropertyDef, TypeObj, MethodDef, EnumDef
 
 
 class TreeXform(Transformer):
@@ -37,8 +37,8 @@ class TreeXform(Transformer):
         print("iface_def_stmt:")
         target = ClassDef()
         for item in tree:
-            print(f"{item=}")
-            print(f"{item.data=}")
+            # print(f"{item=}")
+            # print(f"{item.data=}")
             if item.data == "class_name":
                 print("class name")
                 print(f"{item.children=}")
@@ -60,9 +60,27 @@ class TreeXform(Transformer):
         print(f"{target=}")
         return f"class {0}"
 
+    class_attrib_names = ("scriptable", "abstract", "smartptr", "cloneable")
+
     def parse_class_stmt(self, tree, target):
+        if isinstance(tree[0], PropertyDef):
+            print(f"property: {tree[0]}")
+            target.add_property(tree[0])
+            return
+
+        if isinstance(tree[0], MethodDef):
+            print(f"method: {tree[0]}")
+            target.add_method(tree[0])
+            return
+
+        if isinstance(tree[0], EnumDef):
+            print(f"enumdef: {tree[0]}")
+            target.add_enumdef(tree[0])
+            return
+
+        # print(f"{tree=}")
         stmt_name = tree[0].data
-        print(f"=== {stmt_name=}")
+        # print(f"=== {stmt_name=}")
         if stmt_name == "client_header_stmt":
             header_name = tree[0].children[0].value
             print(f"{header_name=}")
@@ -71,21 +89,125 @@ class TreeXform(Transformer):
             cxx_name = tree[0].children[0].value
             print(f"{cxx_name=}")
             target.cxx_name = cxx_name
-        elif stmt_name == "attribute_stmt":
-            option = tree[0].children[0].data
+        elif stmt_name in self.class_attrib_names:
+            option = stmt_name
             print(f"{option=}")
             target.add_option(option)
-        elif stmt_name == "property_stmt":
-            self.parse_prop_stmt(tree[0].children, target)
-        elif stmt_name == "method_stmt":
-            print("method def")
         elif stmt_name == "enumdef_stmt":
             print("enumdef def")
         else:
             raise RuntimeError(f"unknown statement: {stmt_name}")
 
-    def parse_prop_stmt(self, tree, target):
-        print(f"property {tree=}")
+    def property_stmt(self, tree):
+        # print(f"property {tree=}")
+        prop = PropertyDef()
+        for item in tree:
+            print(f"property {item.data=}")
+            if item.data == "property_type":
+                prop_type = item.children[0]
+                print(f"proprety type : {prop_type}")
+                prop.prop_type = prop_type
+            elif item.data == "property_name":
+                prop_name = item.children[0].value
+                print(f"proprety name : {prop_name}")
+                prop.prop_name = prop_name
+            elif item.data == "prop_redirect_clause":
+                assert len(item.children) == 2
+                getter, setter = item.children
+                assert getter.data == "getter_name"
+                getter_name = getter.children[0].value
+                assert setter.data == "setter_name"
+                setter_name = setter.children[0].value
+                print(f"{getter_name=}")
+                print(f"{setter_name=}")
+                prop.redirect = True
+                prop.cxx_getter_name = getter_name
+                prop.cxx_setter_name = setter_name
+            elif item.data == "prop_access_clause":
+                assert len(item.children) == 1
+                assert isinstance(item.children[0], Token)
+                field_name = item.children[0].value
+                print(f"{field_name=}")
+                prop.redirect = False
+                prop.cxx_field_name = field_name
+            elif item.data == "prop_modif_list":
+                for modif in item.children:
+                    print(f"modifier: {modif.data}")
+                    prop.modifiers.append(modif.data)
+
+        return prop
+
+    def method_stmt(self, tree):
+        method = MethodDef()
+        for item in tree:
+            # print(f"method {item.data=}")
+            if item.data == "return_type":
+                return_type = item.children[0]
+                print(f"return type : {return_type}")
+                method.return_type = return_type
+            elif item.data == "method_name":
+                method_name = item.children[0].value
+                print(f"method name : {method_name}")
+                method.method_name = method_name
+            elif item.data == "method_arg_list":
+                print(f"{item=}")
+                method.args = self.make_method_args(item.children)
+            elif item.data == "mth_redirect_clause":
+                print(f"Method redirect {item=}")
+                method.redirect = True
+                method.cxx_name = item.children[0].value
+
+        return method
+
+    def make_method_args(self, tree):
+        args = []
+        for item in tree:
+            assert item.data == "method_arg"
+            assert len(item.children) >= 1
+            arg = item.children[0]
+            args.append(arg)
+            print(f"method_arg {arg=}")
+        return args
+
+    def enumdef_stmt(self, tree):
+        target = EnumDef()
+        for item in tree:
+            if item.data == "enum_name":
+                name = item.children[0].value
+                print(f"enum name : {name}")
+                target.enum_name = name
+            elif item.data == "enum_decl_stmt":
+                print(f"{item=}")
+                assert len(item.children) >= 2
+                enumkey = item.children[0].children[0].value
+                enumdef = item.children[1].children[0].value
+                print(f"{enumkey=}")
+                print(f"{enumdef=}")
+                if enumkey in target.enum_data:
+                    raise RuntimeError(
+                        f"enum {enumkey} already defined in {target.enum_name}"
+                    )
+                target.enum_data[enumkey] = enumdef
+
+        return target
+
+    def type_name(self, tree):
+        item = tree[0]
+        if len(item.children) == 0:
+            result = TypeObj(type_name=item.data)
+        else:
+            assert item.data == "object_type_name"
+            type_spec = item.children[0].data
+            obj_type = item.children[0].children[0].value
+            if type_spec == "object_type_spec":
+                ref = False
+            elif type_spec == "object_reftype_spec":
+                ref = True
+            else:
+                raise RuntimeError(f"unknown type spec: {type_spec}")
+            result = TypeObj(type_name="object", ref=ref, obj_type=obj_type)
+        print(f"type_name: {result}")
+        return result
 
     # def attribute_stmt(self, tree):
     #     print(f"class_attribute: {tree[0].data}")

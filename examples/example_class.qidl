@@ -23,10 +23,11 @@ runtime_class View extends Object
         play = qsys::AnimMgr::AM_RUNNING;
         pause = qsys::AnimMgr::AM_PAUSED;
     }
-    property enum playState => m_nState (readonly);
+    property enum playState => m_nState (readonly, nopersist);
 
     ///////////////////////////////////////
     // methods
+    void goTime(object<TimeValue> tv, object<View$> pTgtView) => goTimeScr;
     void start(object<View$> pTgtView);
 
 };

@@ -3,9 +3,7 @@ from pathlib import Path
 
 _here = Path(__file__).parent
 
-_LARK_PARSER = Lark(
-    open(_here / "grammer.lark", encoding="utf-8").read(), start="start"
-)
+_GRAMMER_DEF = open(_here / "grammer.lark", encoding="utf-8").read()
 
 file_db = {}
 
@@ -19,9 +17,8 @@ def parse_file(xform_cls, input_path, include_paths=None):
     with input_path.open("r") as f:
         text = f.read()
 
-    # parser = Lark(_LARK_PARSER.read(), start="start")
-    tree = _LARK_PARSER.parse(text)
-    # print(tree.pretty())
+    parser = Lark(_GRAMMER_DEF, start="start")
+    tree = parser.parse(text)
 
     result = xform_cls(input_dir=input_dir, include_paths=include_paths).transform(tree)
     file_db[input_path] = result
