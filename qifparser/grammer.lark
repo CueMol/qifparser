@@ -2,39 +2,89 @@ start: statement+
 
 statement: iface_def_stmt SEP
            | include_stmt SEP
+           | moddef_stmt SEP
 
-iface_def_stmt: "runtime_class" class_name "{" class_stmt* "}"
+/////
+// INTERFACE
+
+iface_def_stmt: "runtime_class" class_name extn_clause? "{" class_stmt* "}"
 
 class_name: IDENT
 class_stmt: client_header_stmt SEP
             | client_name_stmt SEP
             | attribute_stmt SEP
             | property_stmt SEP
+            | method_stmt SEP
+            | enumdef_stmt
+
+extn_clause: "extends" IDENT
 
 /////
+// CLIENT header/c++ name
 
 client_header_stmt: "client_hdr" ESCAPED_STRING
 client_name_stmt: "client_name" CXX_NAME
-attribute_stmt: ("scriptable" | "abstract" | "smartptr" | "cloneable")
+attribute_stmt: scriptable | abstract | smartptr | cloneable
+scriptable: "scriptable"
+abstract: "abstract"
+smartptr: "smartptr"
+cloneable: "cloneable"
 
 /////
+// PROPERTY
 
-property_stmt: "property" TYPE_NAME IDENT prop_redirect_modifier?
-prop_redirect_modifier: "=>" "redirect" "(" getter_name "," setter_name ")"
+property_stmt: "property" type_name IDENT (prop_redirect_clause | prop_access_clause)? prop_modif?
+prop_access_clause: "=>" CXX_NAME
+prop_redirect_clause: "=>" "redirect" "(" getter_name "," setter_name ")"
+
 getter_name: IDENT
 setter_name: IDENT
+prop_modif: "(" ("readonly" | "nopersist") ")"
 
 /////
+// METHOD
+
+method_stmt: type_name IDENT "(" method_arg_list? ")" mth_redirect_clause?
+mth_redirect_clause: "=>" CXX_NAME
+method_arg_list: method_arg ("," method_arg)*
+method_arg: type_name IDENT?
+
+/////
+// ENUMDEF
+
+enumdef_stmt: "enumdef" IDENT "{" enum_decl_stmt+ "}"
+
+enum_decl_stmt: IDENT "=" CXX_NAME SEP
+
+/////
+// IMPORT statement
 
 include_stmt: "import" "\"" FILE_PATH "\""
 
 /////
+// MODULE statement
+moddef_stmt: "module" IDENT "{" mod_spec_stmt* "}"
 
+mod_spec_stmt: "init" CXX_NAME "()" SEP
+             | "fini" CXX_NAME "()" SEP
+             | IDENT mod_load_opt? SEP
+
+mod_load_opt: "uuid" UUID_TOKEN
+
+/////
+// TYPE token
+
+type_name: ("enum" | "string" | "real" | "integer" | "boolean" | "void" | object_type_name)
+object_type_name: "object" "<" object_type_spec ">"
+object_type_spec: IDENT | IDENT "$"
+
+/////
+
+UUID_TOKEN: /[0-9a-zA-Z\-]+/
 FILE_PATH: /[_0-9a-zA-Z\/\.]+/
 IDENT: CNAME
 SEP: ";"
 CXX_NAME: CNAME ("::" CNAME)*
-TYPE_NAME: ("string" | "real" | "integer" | "boolean")
 
 COMMENT: "//" /[^\n]*/ NEWLINE
 

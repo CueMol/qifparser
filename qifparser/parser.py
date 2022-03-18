@@ -24,4 +24,5 @@ def parse_file(xform_cls, input_path, include_paths=None):
     # print(tree.pretty())
 
     result = xform_cls(input_dir=input_dir, include_paths=include_paths).transform(tree)
+    file_db[input_path] = result
     return result

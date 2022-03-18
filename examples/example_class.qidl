@@ -3,7 +3,7 @@
 import "qlib/Vector.qidl";
 import "Camera.qidl";
 
-runtime_class View
+runtime_class View extends Object
 {
     client_hdr "View.hpp";
     client_name qsys::View;
@@ -12,9 +12,30 @@ runtime_class View
     abstract;
     smartptr;
 
-  ///////////////////////////////////////
-  // view properties
+    ///////////////////////////////////////
+    // view properties
 
-  property string name => redirect(getName, setName);
+    property string name => redirect(getName, setName);
+    property object<TimeValue> length => redirect(getScrLength, setScrLength);
 
+    enumdef playState {
+        stop = qsys::AnimMgr::AM_STOP;
+        play = qsys::AnimMgr::AM_RUNNING;
+        pause = qsys::AnimMgr::AM_PAUSED;
+    }
+    property enum playState => m_nState (readonly);
+
+    ///////////////////////////////////////
+    // methods
+    void start(object<View$> pTgtView);
+
+};
+
+module qsys
+{
+  init qsys::init();
+  fini qsys::fini();
+
+  StreamManager uuid 5F0C639A-5AED-40c7-A650-55997F43B111;
+  SceneManager uuid 75b388f4-80c1-480a-88f7-dc45557c7dd7;
 };
