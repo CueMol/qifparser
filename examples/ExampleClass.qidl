@@ -3,10 +3,10 @@
 import "qlib/Vector.qidl";
 import "Camera.qidl";
 
-runtime_class View extends Object
+runtime_class ExampleClass extends Object
 {
-    client_hdr "View.hpp";
-    client_name qsys::View;
+    client_hdr "ExampleClass.hpp";
+    client_name myapp::ExampleClass;
 
     scriptable;
     abstract;

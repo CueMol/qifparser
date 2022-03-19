@@ -8,7 +8,7 @@ echo "TOP_DIR: $TOP_DIR"
 PYTHON=${PYTHON:-'python3 -u'}
 
 $PYTHON $TOP_DIR/qifparser/main.py \
-        -c $TOP_DIR/examples/example_class.qidl \
+        -c $TOP_DIR/examples/ExampleClass.qidl \
         -I $TOP_DIR/examples \
         -I $TOP_DIR/examples/include \
         -o example_class_wrap.cpp

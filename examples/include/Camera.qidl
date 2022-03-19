@@ -1,6 +1,6 @@
-// import "qlib/Vector.qif";
-// import "qlib/Quat.qif";
-// import "Scene.qif";
+import "qlib/Vector.qidl";
+// import "qlib/Quat.qidl";
+// import "Scene.qidl";
 
 runtime_class Camera
 {

@@ -6,11 +6,39 @@ from qifparser.class_def import ClassDef, PropertyDef, TypeObj, MethodDef, EnumD
 
 
 class TreeXform(Transformer):
-    def __init__(self, input_dir, include_paths=None):
+    def __init__(self, target_file, include_paths=None, moddef_mode=False):
+        input_dir = target_file.parent
+        self.target_file = target_file
         self.args_inc_path = include_paths
         self.include_paths = [str(input_dir)]
         if include_paths is not None:
             self.include_paths = include_paths
+        self.moddef_mode = moddef_mode
+
+    def start(self, tree):
+        class_def = None
+        mod_def = None
+        for item in tree:
+            print(f"start: {type(item)=} {item=}")
+            assert item.data == "statement"
+            assert len(item.children) >= 1
+            val = item.children[0]
+            if isinstance(val, ClassDef):
+                if class_def is None:
+                    class_def = val
+                else:
+                    raise RuntimeError("more than one runtime_class defs")
+
+        if self.moddef_mode:
+            if mod_def is None:
+                raise RuntimeError("no module definition found")
+            else:
+                return mod_def
+        else:
+            if class_def is None:
+                raise RuntimeError("no runtime_class definition found")
+            else:
+                return class_def
 
     def include_stmt(self, tree):
         # print(f"include_stmt: {tree}")
@@ -29,9 +57,11 @@ class TreeXform(Transformer):
         if load_file is None:
             raise RuntimeError(f"file not found: {value}")
 
-        # result = parse_file(TreeXform, load_file, self.args_inc_path)
+        if load_file == self.target_file:
+            raise RuntimeError(f"reentrant include statement")
+        parse_file(TreeXform, load_file, self.args_inc_path)
         # print(f"parse file {value} OK: {result}")
-        return f"import {value}"
+        return f"import {load_file}"
 
     def iface_def_stmt(self, tree):
         print("iface_def_stmt:")
@@ -58,7 +88,7 @@ class TreeXform(Transformer):
             print(f"{item.value=}")
 
         print(f"{target=}")
-        return f"class {0}"
+        return target
 
     class_attrib_names = ("scriptable", "abstract", "smartptr", "cloneable")
 

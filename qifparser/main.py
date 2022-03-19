@@ -1,16 +1,7 @@
-from lark import Lark
-
 import argparse
 from pathlib import Path
 from qifparser.tree_xform import TreeXform
 from qifparser.parser import parse_file
-
-# import sys
-# from functools import reduce
-
-
-_here = Path(__file__).parent
-_LARK_PARSER = open(_here / "grammer.lark", encoding="utf-8")
 
 
 def create_parser():
@@ -33,15 +24,6 @@ def main():
     input_path = Path(args.input)
 
     parse_file(TreeXform, input_path, include_paths=args.include)
-    # print(f"{text=}")
-    # print(f"{_LARK_PARSER=}")
-
-    # parser = Lark(_LARK_PARSER.read(), start="start")
-    # tree = parser.parse(text)
-    # print(tree.pretty())
-
-    # result = TreeXform(input_dir=input_dir, include_paths=args.include).transform(tree)
-    # print(result)
 
 
 if __name__ == "__main__":
