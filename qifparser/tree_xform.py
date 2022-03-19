@@ -1,14 +1,38 @@
+import logging
 from lark import Transformer, Token
 from pathlib import Path
 
-from qifparser.parser import parse_file
+# from qifparser.parser import parse_file
 from qifparser.class_def import ClassDef, PropertyDef, TypeObj, MethodDef, EnumDef
+
+logger = logging.getLogger(__name__)
+_pending_load = []
+print(f"===== {_pending_load=}")
+
+
+def add_pending_load(file_path):
+    global _pending_load
+    _pending_load.append(file_path)
+    # print(f"add_pending_load {_pending_load=}")
+
+
+def remove_pending_load(file_path):
+    global _pending_load
+    # print(f"remove_pending_load******************** {_pending_load=}")
+    _pending_load = [i for i in _pending_load if i != file_path]
+
+
+def get_pending_load():
+    global _pending_load
+    # print(f"get_pending_load******************** {_pending_load=}")
+    return _pending_load
 
 
 class TreeXform(Transformer):
-    def __init__(self, target_file, include_paths=None, moddef_mode=False):
+    def __init__(self, target_file, top_srcdir, include_paths=None, moddef_mode=False):
         input_dir = target_file.parent
         self.target_file = target_file
+        self.top_srcdir = top_srcdir
         self.args_inc_path = include_paths
         self.include_paths = [str(input_dir)]
         if include_paths is not None:
@@ -19,7 +43,7 @@ class TreeXform(Transformer):
         class_def = None
         mod_def = None
         for item in tree:
-            print(f"start: {type(item)=} {item=}")
+            # print(f"start: {type(item)=} {item=}")
             assert item.data == "statement"
             assert len(item.children) >= 1
             val = item.children[0]
@@ -44,14 +68,14 @@ class TreeXform(Transformer):
         # print(f"include_stmt: {tree}")
         token = tree[0]
         value = token.value
-        print(f"file: {value}")
+        # print(f"file: {value}")
         load_file = None
         for path in self.include_paths:
             chk_file = Path(path) / value
             if not chk_file.is_file():
-                print(f"not found: {chk_file}")
+                # print(f"not found: {chk_file}")
                 continue
-            print(f"File OK: {chk_file}")
+            # print(f"File OK: {chk_file}")
             load_file = chk_file
             break
         if load_file is None:
@@ -59,24 +83,25 @@ class TreeXform(Transformer):
 
         if load_file == self.target_file:
             raise RuntimeError(f"reentrant include statement")
-        parse_file(TreeXform, load_file, self.args_inc_path)
-        # print(f"parse file {value} OK: {result}")
+        # parse_file(self, load_file)
+        add_pending_load(load_file)
         return f"import {load_file}"
 
     def iface_def_stmt(self, tree):
-        print("iface_def_stmt:")
+        # print("iface_def_stmt:")
         target = ClassDef()
+        target.input_rel_path = self.target_file.relative_to(self.top_srcdir)
         for item in tree:
             # print(f"{item=}")
             # print(f"{item.data=}")
             if item.data == "class_name":
-                print("class name")
-                print(f"{item.children=}")
+                # print("class name")
+                # print(f"{item.children=}")
                 cls_name = item.children[0].value
                 target.set_class_name(cls_name)
 
             elif item.data == "extn_clause":
-                print(f"{item.children=}")
+                # print(f"{item.children=}")
                 cls_name = item.children[0].value
                 target.extend_class(cls_name)
 
@@ -85,26 +110,26 @@ class TreeXform(Transformer):
 
             if not hasattr(item, "value"):
                 continue
-            print(f"{item.value=}")
+            # print(f"{item.value=}")
 
-        print(f"{target=}")
+        # print(f"{target=}")
         return target
 
     class_attrib_names = ("scriptable", "abstract", "smartptr", "cloneable")
 
     def parse_class_stmt(self, tree, target):
         if isinstance(tree[0], PropertyDef):
-            print(f"property: {tree[0]}")
+            # print(f"property: {tree[0]}")
             target.add_property(tree[0])
             return
 
         if isinstance(tree[0], MethodDef):
-            print(f"method: {tree[0]}")
+            # print(f"method: {tree[0]}")
             target.add_method(tree[0])
             return
 
         if isinstance(tree[0], EnumDef):
-            print(f"enumdef: {tree[0]}")
+            # print(f"enumdef: {tree[0]}")
             target.add_enumdef(tree[0])
             return
 
@@ -113,18 +138,19 @@ class TreeXform(Transformer):
         # print(f"=== {stmt_name=}")
         if stmt_name == "client_header_stmt":
             header_name = tree[0].children[0].value
-            print(f"{header_name=}")
-            target.decl_hdr = header_name
+            # print(f"{header_name=}")
+            target.cli_header_name = header_name
         elif stmt_name == "client_name_stmt":
             cxx_name = tree[0].children[0].value
-            print(f"{cxx_name=}")
+            # print(f"{cxx_name=}")
             target.cxx_name = cxx_name
         elif stmt_name in self.class_attrib_names:
             option = stmt_name
-            print(f"{option=}")
+            # print(f"{option=}")
             target.add_option(option)
         elif stmt_name == "enumdef_stmt":
-            print("enumdef def")
+            # print("enumdef def")
+            pass
         else:
             raise RuntimeError(f"unknown statement: {stmt_name}")
 
@@ -132,14 +158,14 @@ class TreeXform(Transformer):
         # print(f"property {tree=}")
         prop = PropertyDef()
         for item in tree:
-            print(f"property {item.data=}")
+            # print(f"property {item.data=}")
             if item.data == "property_type":
                 prop_type = item.children[0]
-                print(f"proprety type : {prop_type}")
+                # print(f"proprety type : {prop_type}")
                 prop.prop_type = prop_type
             elif item.data == "property_name":
                 prop_name = item.children[0].value
-                print(f"proprety name : {prop_name}")
+                # print(f"proprety name : {prop_name}")
                 prop.prop_name = prop_name
             elif item.data == "prop_redirect_clause":
                 assert len(item.children) == 2
@@ -148,8 +174,8 @@ class TreeXform(Transformer):
                 getter_name = getter.children[0].value
                 assert setter.data == "setter_name"
                 setter_name = setter.children[0].value
-                print(f"{getter_name=}")
-                print(f"{setter_name=}")
+                # print(f"{getter_name=}")
+                # print(f"{setter_name=}")
                 prop.redirect = True
                 prop.cxx_getter_name = getter_name
                 prop.cxx_setter_name = setter_name
@@ -157,12 +183,12 @@ class TreeXform(Transformer):
                 assert len(item.children) == 1
                 assert isinstance(item.children[0], Token)
                 field_name = item.children[0].value
-                print(f"{field_name=}")
+                # print(f"{field_name=}")
                 prop.redirect = False
                 prop.cxx_field_name = field_name
             elif item.data == "prop_modif_list":
                 for modif in item.children:
-                    print(f"modifier: {modif.data}")
+                    # print(f"modifier: {modif.data}")
                     prop.modifiers.append(modif.data)
 
         return prop
@@ -173,17 +199,17 @@ class TreeXform(Transformer):
             # print(f"method {item.data=}")
             if item.data == "return_type":
                 return_type = item.children[0]
-                print(f"return type : {return_type}")
+                # print(f"return type : {return_type}")
                 method.return_type = return_type
             elif item.data == "method_name":
                 method_name = item.children[0].value
-                print(f"method name : {method_name}")
+                # print(f"method name : {method_name}")
                 method.method_name = method_name
             elif item.data == "method_arg_list":
-                print(f"{item=}")
+                # print(f"{item=}")
                 method.args = self.make_method_args(item.children)
             elif item.data == "mth_redirect_clause":
-                print(f"Method redirect {item=}")
+                # print(f"Method redirect {item=}")
                 method.redirect = True
                 method.cxx_name = item.children[0].value
 
@@ -196,7 +222,7 @@ class TreeXform(Transformer):
             assert len(item.children) >= 1
             arg = item.children[0]
             args.append(arg)
-            print(f"method_arg {arg=}")
+            # print(f"method_arg {arg=}")
         return args
 
     def enumdef_stmt(self, tree):
@@ -204,15 +230,15 @@ class TreeXform(Transformer):
         for item in tree:
             if item.data == "enum_name":
                 name = item.children[0].value
-                print(f"enum name : {name}")
+                # print(f"enum name : {name}")
                 target.enum_name = name
             elif item.data == "enum_decl_stmt":
-                print(f"{item=}")
+                # print(f"{item=}")
                 assert len(item.children) >= 2
                 enumkey = item.children[0].children[0].value
                 enumdef = item.children[1].children[0].value
-                print(f"{enumkey=}")
-                print(f"{enumdef=}")
+                # print(f"{enumkey=}")
+                # print(f"{enumdef=}")
                 if enumkey in target.enum_data:
                     raise RuntimeError(
                         f"enum {enumkey} already defined in {target.enum_name}"
@@ -236,7 +262,7 @@ class TreeXform(Transformer):
             else:
                 raise RuntimeError(f"unknown type spec: {type_spec}")
             result = TypeObj(type_name="object", ref=ref, obj_type=obj_type)
-        print(f"type_name: {result}")
+        # print(f"type_name: {result}")
         return result
 
     # def attribute_stmt(self, tree):

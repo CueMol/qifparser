@@ -9,9 +9,11 @@ class ClassDef:
     supcls: Optional[str] = None
     extends: List[str] = field(default_factory=list)
     extends_wrapper: List[str] = field(default_factory=list)
-    options: List[str] = field(default_factory=list)
-    decl_hdr: str = ""
+    cli_header_name: str = ""
     cxx_name: str = ""
+    input_rel_path: Optional[str] = None
+
+    options: List[str] = field(default_factory=list)
     properties: Dict[str, Any] = field(default_factory=dict)
     methods: Dict[str, Any] = field(default_factory=dict)
     enumdefs: Dict[str, str] = field(default_factory=dict)
@@ -46,6 +48,16 @@ class ClassDef:
         if name in self.methods:
             raise RuntimeError(f"enumdef {name} already defined in {self.curcls}")
         self.enumdefs[name] = enum_def
+
+    def is_smart_ptr(self):
+        return "smartptr" in self.options
+
+    def is_cloneable(self):
+        return "cloneable" in self.options
+
+    def get_wp_clsname(self):
+        # TODO: configurable??
+        return f"{self.qifname}_wrap"
 
 
 @dataclass
