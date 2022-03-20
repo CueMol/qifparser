@@ -3,7 +3,7 @@
 import "qlib/Vector.qidl";
 import "Camera.qidl";
 
-runtime_class ExampleClass extends Object
+runtime_class ExampleClass extends Camera
 {
     client_hdr "ExampleClass.hpp";
     client_name myapp::ExampleClass;
@@ -11,11 +11,13 @@ runtime_class ExampleClass extends Object
     scriptable;
     abstract;
     smartptr;
+    using Vector;
 
     ///////////////////////////////////////
     // view properties
 
     property string name => redirect(getName, setName);
+    default name = "xxx";
     property object<TimeValue> length => redirect(getScrLength, setScrLength);
 
     enumdef playState {

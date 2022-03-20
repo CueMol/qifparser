@@ -15,6 +15,8 @@ class_stmt: client_header_stmt SEP
             | attribute_stmt SEP
             | property_stmt SEP
             | method_stmt SEP
+            | using_stmt SEP
+            | default_propval_stmt SEP
             | enumdef_stmt
 
 extn_clause: "extends" IDENT
@@ -56,6 +58,16 @@ method_arg_list: method_arg ("," method_arg)*
 method_arg: type_name IDENT?
 
 /////
+// USING
+using_stmt: "using" using_type_ref
+using_type_ref: IDENT
+
+/////
+// DEFAULT PROP VAL
+default_propval_stmt: "default" property_name "=" prop_cxx_value
+prop_cxx_value: ANY_CXX_EXPR
+
+/////
 // ENUMDEF
 
 enumdef_stmt: "enumdef" enum_name "{" enum_decl_stmt+ "}"
@@ -63,7 +75,7 @@ enumdef_stmt: "enumdef" enum_name "{" enum_decl_stmt+ "}"
 enum_name: IDENT
 enum_decl_stmt: enum_key "=" enum_cxx_def SEP
 enum_key: IDENT
-enum_cxx_def: CXX_NAME
+enum_cxx_def: ANY_CXX_EXPR
 
 /////
 // IMPORT statement
@@ -102,6 +114,7 @@ FILE_PATH: /[_0-9a-zA-Z\/\.]+/
 IDENT: CNAME
 SEP: ";"
 CXX_NAME: CNAME ("::" CNAME)*
+ANY_CXX_EXPR: /[^;]+/
 
 COMMENT: "//" /[^\n]*/ NEWLINE
 

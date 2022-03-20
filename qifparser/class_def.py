@@ -1,5 +1,8 @@
+import logging
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Set
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -14,6 +17,8 @@ class ClassDef:
     input_rel_path: Optional[str] = None
 
     options: List[str] = field(default_factory=list)
+    refers: Set[str] = field(default_factory=set)
+
     properties: Dict[str, Any] = field(default_factory=dict)
     methods: Dict[str, Any] = field(default_factory=dict)
     enumdefs: Dict[str, str] = field(default_factory=dict)
@@ -26,7 +31,9 @@ class ClassDef:
         self.supcls = supcls
         self.extends = [supcls]
         self.extends_wrapper = [f"{supcls}_wrap"]
-        # TODO: append refer QIDL
+
+        # Append refer QIDL
+        self.append_refer_qif(supcls)
 
     def add_option(self, opt):
         self.options.append(opt)
@@ -37,11 +44,19 @@ class ClassDef:
             raise RuntimeError(f"property {prop_name} already defined in {self.curcls}")
         self.properties[prop_name] = prop_def
 
+        # Append refer QIDL
+        self.append_refer_typeobj(prop_def.prop_type)
+
     def add_method(self, method_def):
         method_name = method_def.method_name
         if method_name in self.methods:
             raise RuntimeError(f"method {method_name} already defined in {self.curcls}")
         self.methods[method_name] = method_def
+
+        # Append refer QIDL
+        self.append_refer_typeobj(method_def.return_type)
+        for item in method_def.args:
+            self.append_refer_typeobj(item)
 
     def add_enumdef(self, enum_def):
         name = enum_def.enum_name
@@ -58,6 +73,16 @@ class ClassDef:
     def get_wp_clsname(self):
         # TODO: configurable??
         return f"{self.qifname}_wrap"
+
+    def append_refer_qif(self, qifname):
+        logger.info(f"refer QIF type: {qifname}")
+        self.refers.add(qifname)
+
+    def append_refer_typeobj(self, type_obj):
+        if type_obj.type_name != "object":
+            return
+        refcls = type_obj.obj_type
+        self.append_refer_qif(refcls)
 
 
 @dataclass
@@ -76,7 +101,7 @@ class PropertyDef:
     cxx_getter_name: Optional[str] = None
     cxx_setter_name: Optional[str] = None
     cxx_field_name: Optional[str] = None
-
+    default_cxx_rval: Optional[str] = None
     modifiers: List[str] = field(default_factory=list)
 
 

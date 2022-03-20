@@ -7,7 +7,7 @@ from qifparser.class_def import ClassDef, PropertyDef, TypeObj, MethodDef, EnumD
 
 logger = logging.getLogger(__name__)
 _pending_load = []
-print(f"===== {_pending_load=}")
+logger.debug(f"===== {_pending_load=}")
 
 
 def add_pending_load(file_path):
@@ -99,18 +99,14 @@ class TreeXform(Transformer):
                 # print(f"{item.children=}")
                 cls_name = item.children[0].value
                 target.set_class_name(cls_name)
-
             elif item.data == "extn_clause":
                 # print(f"{item.children=}")
                 cls_name = item.children[0].value
                 target.extend_class(cls_name)
-
             elif item.data == "class_stmt":
                 self.parse_class_stmt(item.children, target)
-
-            if not hasattr(item, "value"):
-                continue
-            # print(f"{item.value=}")
+            else:
+                raise RuntimeError(f"unknown token: {item.data}")
 
         # print(f"{target=}")
         return target
@@ -145,12 +141,24 @@ class TreeXform(Transformer):
             # print(f"{cxx_name=}")
             target.cxx_name = cxx_name
         elif stmt_name in self.class_attrib_names:
+            # Attributes
             option = stmt_name
-            # print(f"{option=}")
             target.add_option(option)
-        elif stmt_name == "enumdef_stmt":
-            # print("enumdef def")
-            pass
+        elif stmt_name == "using_stmt":
+            type_ref = tree[0].children[0].children[0].value
+            logger.info(f"using {type_ref=}")
+            target.append_refer_qif(type_ref)
+        elif stmt_name == "default_propval_stmt":
+            assert len(tree[0].children) == 2
+            prop_name_node, prop_val_node = tree[0].children
+            prop_name = prop_name_node.children[0].value
+            prop_val = prop_val_node.children[0].value
+            logger.info(f"default {prop_name=}")
+            logger.info(f"default {prop_val=}")
+            if prop_name not in target.properties:
+                raise RuntimeError(f"undefined prop ({prop_name}) in default decl")
+            prop_def = target.properties[prop_name]
+            prop_def.default_cxx_rval = prop_val
         else:
             raise RuntimeError(f"unknown statement: {stmt_name}")
 
