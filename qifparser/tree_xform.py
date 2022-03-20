@@ -36,7 +36,7 @@ class TreeXform(Transformer):
         self.args_inc_path = include_paths
         self.include_paths = [str(input_dir)]
         if include_paths is not None:
-            self.include_paths = include_paths
+            self.include_paths.extend(include_paths)
         self.moddef_mode = moddef_mode
 
     def start(self, tree):
@@ -79,7 +79,7 @@ class TreeXform(Transformer):
             load_file = chk_file
             break
         if load_file is None:
-            raise RuntimeError(f"file not found: {value}")
+            raise RuntimeError(f"file not found: {value} in {self.include_paths}")
 
         if load_file == self.target_file:
             raise RuntimeError(f"reentrant include statement")
@@ -111,7 +111,13 @@ class TreeXform(Transformer):
         # print(f"{target=}")
         return target
 
-    class_attrib_names = ("scriptable", "abstract", "smartptr", "cloneable")
+    class_attrib_names = (
+        "scriptable",
+        "abstract",
+        "smartptr",
+        "cloneable",
+        "singleton",
+    )
 
     def parse_class_stmt(self, tree, target):
         if isinstance(tree[0], PropertyDef):
@@ -140,6 +146,9 @@ class TreeXform(Transformer):
             cxx_name = tree[0].children[0].value
             # print(f"{cxx_name=}")
             target.cxx_name = cxx_name
+        elif stmt_name == "dllexport_stmt":
+            # TODO: impl
+            logger.warning(f"dllexport ignored")
         elif stmt_name in self.class_attrib_names:
             # Attributes
             option = stmt_name

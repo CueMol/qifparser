@@ -17,12 +17,13 @@ class_stmt: client_header_stmt SEP
             | method_stmt SEP
             | using_stmt SEP
             | default_propval_stmt SEP
+            | dllexport_stmt SEP
             | enumdef_stmt
 
 extn_clause: "extends" IDENT
 
 /////
-// CLIENT header/c++ name
+// CLIENT header/c++ name, etc
 
 client_header_stmt: "client_hdr" ESCAPED_STRING
 client_name_stmt: "client_name" CXX_NAME
@@ -30,6 +31,8 @@ attribute_stmt: "scriptable" -> scriptable
               | "abstract" -> abstract
               | "smartptr" -> smartptr
               | "cloneable" -> cloneable
+              | "singleton" -> singleton
+dllexport_stmt: "dllexport" IDENT
 
 /////
 // PROPERTY
@@ -95,7 +98,9 @@ mod_load_opt: "uuid" UUID_TOKEN
 /////
 // TYPE token
 
-type_name: enum | string | real | integer | boolean | void | object_type_name
+type_name: dict | array | enum | string | real | integer | boolean | void | object_type_name
+dict: "dict"
+array: "array"
 enum: "enum"
 string: "string"
 real: "real"

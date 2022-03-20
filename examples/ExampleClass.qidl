@@ -27,6 +27,8 @@ runtime_class ExampleClass extends Camera
     }
     property enum playState => m_nState (readonly, nopersist);
 
+    enumdef dummy = playState;
+
     ///////////////////////////////////////
     // methods
     void goTime(object<TimeValue> tv, object<View$> pTgtView) => goTimeScr;

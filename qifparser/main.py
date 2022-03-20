@@ -52,8 +52,10 @@ def main():
     # input_rel_path = input_path.relative_to(top_srcdir)
     # logger.info(f"input relative path: {input_rel_path}")
 
+    include_paths = [Path(i).resolve() for i in args.include]
+    logger.info(f"{include_paths=}")
     xformer = TreeXform(
-        target_file=input_path, top_srcdir=top_srcdir, include_paths=args.include
+        target_file=input_path, top_srcdir=top_srcdir, include_paths=include_paths
     )
 
     result = parse_file(xformer)
@@ -64,8 +66,9 @@ def main():
             logger.info("all pending files loaded")
             break
         for item in pd:
+            logger.info(f"loading pending file: {item}")
             xfm = TreeXform(
-                target_file=item, top_srcdir=top_srcdir, include_paths=args.include
+                target_file=item, top_srcdir=top_srcdir, include_paths=include_paths
             )
             parse_file(xfm)
             remove_pending_load(item)
