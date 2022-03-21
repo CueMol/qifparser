@@ -75,6 +75,8 @@ class ClassDef:
         return f"{self.qifname}_wrap"
 
     def append_refer_qif(self, qifname):
+        if qifname in self.refers:
+            return
         logger.info(f"refer QIF type: {qifname}")
         self.refers.add(qifname)
 
@@ -119,3 +121,4 @@ class MethodDef:
 class EnumDef:
     enum_name: Optional[str] = None
     enum_data: Dict[str, str] = field(default_factory=dict)
+    enum_alias: Optional[str] = None

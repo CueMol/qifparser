@@ -243,8 +243,10 @@ class TreeXform(Transformer):
         return args
 
     def enumdef_stmt(self, tree):
+        logger.info(f"{tree=}")
         target = EnumDef()
         for item in tree:
+            logger.info(f"enumdef {item=}")
             if item.data == "enum_name":
                 name = item.children[0].value
                 # print(f"enum name : {name}")
@@ -261,6 +263,13 @@ class TreeXform(Transformer):
                         f"enum {enumkey} already defined in {target.enum_name}"
                     )
                 target.enum_data[enumkey] = enumdef
+            elif item.data == "enum_alias_def":
+                alias_def = item.children[0].value
+                target.enum_alias = alias_def
+                logger.info(f"alias: {alias_def}")
+                break
+            else:
+                raise RuntimeError(f"unknown node: {item=}")
 
         return target
 

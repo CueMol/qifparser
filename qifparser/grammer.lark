@@ -73,12 +73,13 @@ prop_cxx_value: ANY_CXX_EXPR
 /////
 // ENUMDEF
 
-enumdef_stmt: "enumdef" enum_name "{" enum_decl_stmt+ "}"
+enumdef_stmt: "enumdef" enum_name ("=" enum_alias_def SEP | "{" enum_decl_stmt+ "}")
 
 enum_name: IDENT
 enum_decl_stmt: enum_key "=" enum_cxx_def SEP
 enum_key: IDENT
 enum_cxx_def: ANY_CXX_EXPR
+enum_alias_def: IDENT
 
 /////
 // IMPORT statement
