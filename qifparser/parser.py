@@ -8,8 +8,12 @@ _GRAMMER_DEF = open(_here / "grammer.lark", encoding="utf-8").read()
 file_db = {}
 class_db = {}
 
+parser = None
+
 
 def get_class_def(clsname):
+    if clsname not in class_db:
+        raise RuntimeError(f"class def not found: {clsname}")
     return class_db[clsname]
 
 
@@ -18,14 +22,15 @@ def is_class_defined(clsname):
 
 
 def parse_file(xformer):
+    global parser
     input_path = xformer.target_file
     if input_path in file_db:
         clsname = file_db[input_path]
         if clsname in class_db:
-            logger.info(f"*** file already loaded: {input_path}::{clsname}")
+            logger.debug(f"*** file already loaded: {input_path}::{clsname}")
             return class_db[clsname]
         else:
-            logger.info(f"*** file is loading: {input_path}")
+            logger.debug(f"*** file is loading: {input_path}")
             return None
 
     logger.info(f"=== parsing file: {input_path} ===")
@@ -33,7 +38,8 @@ def parse_file(xformer):
     with input_path.open("r") as f:
         text = f.read()
 
-    parser = Lark(_GRAMMER_DEF, start="start")
+    if parser is None:
+        parser = Lark(_GRAMMER_DEF, start="start")
     tree = parser.parse(text)
 
     result = xformer.transform(tree)
@@ -42,5 +48,5 @@ def parse_file(xformer):
     file_db[input_path] = clsname
     class_db[clsname] = result
 
-    logger.info(f"=== parsing file DONE: {input_path} ===")
+    logger.debug(f"=== parsing file DONE: {input_path} ===")
     return result

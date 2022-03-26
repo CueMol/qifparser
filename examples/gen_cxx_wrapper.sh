@@ -16,5 +16,5 @@ $PYTHON $TOP_DIR/qifparser/main.py \
         -I $TOP_DIR/examples/include \
         -m cxx_src \
         -o ${TARGET}_wrap.cpp \
-        --top_srcdir $TOP_DIR \
+        --top_srcdir $TOP_DIR/examples \
         --top_builddir $TOP_DIR/build

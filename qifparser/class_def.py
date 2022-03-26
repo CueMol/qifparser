@@ -1,6 +1,7 @@
 import logging
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any, Set
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ class ClassDef:
     def append_refer_qif(self, qifname):
         if qifname in self.refers:
             return
-        logger.info(f"refer QIF type: {qifname}")
+        logger.debug(f"refer QIF type: {qifname}")
         self.refers.add(qifname)
 
     def append_refer_typeobj(self, type_obj):
@@ -85,6 +86,12 @@ class ClassDef:
             return
         refcls = type_obj.obj_type
         self.append_refer_qif(refcls)
+
+    def get_cxx_wp_incname(self):
+        if self.input_rel_path.parent is not None:
+            return self.input_rel_path.parent / f"{self.qifname}_wrap.hpp"
+        else:
+            return Path(f"{self.qifname}_wrap.hpp")
 
 
 @dataclass

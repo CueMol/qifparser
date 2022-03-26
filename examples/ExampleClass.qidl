@@ -18,7 +18,7 @@ runtime_class ExampleClass extends Camera
 
     property string name => redirect(getName, setName);
     default name = "xxx";
-    property object<TimeValue> length => redirect(getScrLength, setScrLength);
+    property object<Vector> length => redirect(getScrLength, setScrLength);
 
     enumdef playState {
         stop = qsys::AnimMgr::AM_STOP;
@@ -31,8 +31,8 @@ runtime_class ExampleClass extends Camera
 
     ///////////////////////////////////////
     // methods
-    void goTime(object<TimeValue> tv, object<View$> pTgtView) => goTimeScr;
-    void start(object<View$> pTgtView);
+    void goTime(object<Vector> tv, object<Vector$> pTgtView) => goTimeScr;
+    void start(object<Vector$> pTgtView);
 
 };
 

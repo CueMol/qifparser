@@ -155,15 +155,15 @@ class TreeXform(Transformer):
             target.add_option(option)
         elif stmt_name == "using_stmt":
             type_ref = tree[0].children[0].children[0].value
-            logger.info(f"using {type_ref=}")
+            logger.debug(f"using {type_ref=}")
             target.append_refer_qif(type_ref)
         elif stmt_name == "default_propval_stmt":
             assert len(tree[0].children) == 2
             prop_name_node, prop_val_node = tree[0].children
             prop_name = prop_name_node.children[0].value
             prop_val = prop_val_node.children[0].value
-            logger.info(f"default {prop_name=}")
-            logger.info(f"default {prop_val=}")
+            logger.debug(f"default {prop_name=}")
+            logger.debug(f"default {prop_val=}")
             if prop_name not in target.properties:
                 raise RuntimeError(f"undefined prop ({prop_name}) in default decl")
             prop_def = target.properties[prop_name]
@@ -243,10 +243,10 @@ class TreeXform(Transformer):
         return args
 
     def enumdef_stmt(self, tree):
-        logger.info(f"{tree=}")
+        logger.debug(f"{tree=}")
         target = EnumDef()
         for item in tree:
-            logger.info(f"enumdef {item=}")
+            logger.debug(f"enumdef {item=}")
             if item.data == "enum_name":
                 name = item.children[0].value
                 # print(f"enum name : {name}")
@@ -266,7 +266,7 @@ class TreeXform(Transformer):
             elif item.data == "enum_alias_def":
                 alias_def = item.children[0].value
                 target.enum_alias = alias_def
-                logger.info(f"alias: {alias_def}")
+                logger.debug(f"alias: {alias_def}")
                 break
             else:
                 raise RuntimeError(f"unknown node: {item=}")

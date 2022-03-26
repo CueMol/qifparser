@@ -28,16 +28,16 @@ def create_parser():
 
 def main():
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         format="[%(levelname)1.1s %(module)s:%(funcName)s] %(message)s",
     )
 
     parser = create_parser()
     args = parser.parse_args()
 
-    logger.info(f"{args.input=}")
-    logger.info(f"{args.output=}")
-    logger.info(f"{args.include=}")
+    logger.debug(f"{args.input=}")
+    logger.debug(f"{args.output=}")
+    logger.debug(f"{args.include=}")
 
     top_srcdir = Path(args.top_srcdir).resolve()
     top_builddir = Path(args.top_builddir).resolve()
@@ -50,10 +50,10 @@ def main():
     if not output_path.is_absolute():
         output_path = (top_builddir / output_path).resolve()
     # input_rel_path = input_path.relative_to(top_srcdir)
-    # logger.info(f"input relative path: {input_rel_path}")
+    # logger.debug(f"input relative path: {input_rel_path}")
 
     include_paths = [Path(i).resolve() for i in args.include]
-    logger.info(f"{include_paths=}")
+    logger.debug(f"{include_paths=}")
     xformer = TreeXform(
         target_file=input_path, top_srcdir=top_srcdir, include_paths=include_paths
     )
@@ -63,10 +63,10 @@ def main():
     while True:
         pd = get_pending_load()
         if len(pd) == 0:
-            logger.info("all pending files loaded")
+            logger.debug("all pending files loaded")
             break
         for item in pd:
-            logger.info(f"loading pending file: {item}")
+            logger.debug(f"try loading pend file: {item}")
             xfm = TreeXform(
                 target_file=item, top_srcdir=top_srcdir, include_paths=include_paths
             )

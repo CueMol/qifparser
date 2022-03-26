@@ -1,12 +1,16 @@
 from qifparser.parser import get_class_def
 from qifparser._version import __version__
+from qifparser.utils import get_var_type_name, is_intrinsic_type
+from qifparser.class_def import MethodDef, TypeObj
 
-# def get_cli_class_name(qif_name):
-#     cdef = get_class_def(qif_name)
-#     return cdef.cxx_name
 
 # TODO: config
 common_inc = "<common.h>"
+
+
+def qif_to_cli_clsname(qifname):
+    cls_obj = get_class_def(qifname)
+    return cls_obj.cxx_name
 
 
 def _gen_src_preamble(f, cls):
@@ -50,9 +54,7 @@ def _gen_cxx_src_impl(f, target, output_path):
 
     _gen_src_preamble(f, cls)
 
-    if cls.input_rel_path is not None:
-        cxx_wp_incname = cls.input_rel_path.parent / f"{qif_name}_wrap.hpp"
-        f.write(f'#include "{cxx_wp_incname}"\n')
+    f.write(f'#include "{cls.get_cxx_wp_incname()}"\n')
 
     f.write("\n")
     f.write("#include <qlib/ClassRegistry.hpp>\n")
@@ -65,14 +67,13 @@ def _gen_cxx_src_impl(f, target, output_path):
     #   print $fhout "\#include $f\n";
     # }
 
-    # TODO: impl referenced wrapper hdrs
-    # if ($cls && $cls->{"refers"}) {
-    #     foreach my $icls (@{$cls->{"refers"}}) {
-    #         my $hdrname = qif2WpHdrFname($icls);
-    #         print $fhout "#include \"$hdrname\"\n";
-    #     }
-    #     print $fhout "\n";
-    # }
+    if len(target.refers) > 0:
+        for ref in target.refers:
+            ref_cls = get_class_def(ref)
+            if ref_cls is None:
+                raise RuntimeError(f"class def not found: {ref}")
+            f.write(f'#include "{ref_cls.get_cxx_wp_incname()}"\n')
+        f.write("\n")
 
     f.write("\n")
     f.write("using qlib::LString;\n")
@@ -93,6 +94,283 @@ def _gen_cxx_src_impl(f, target, output_path):
     f.write(f"// Wrapper class for {cxx_cli_clsname}\n")
     f.write("//\n")
     f.write("\n")
+
+    f.write("/////////////////////////////////////\n")
+    f.write("// Dispatch interface code\n")
+    f.write("\n")
+    f.write("//\n")
+    f.write("// Property getter/setter wrappers\n")
+    f.write("//\n")
+    _gen_property_code(f, cls)
+
+    f.write("\n")
+    f.write("//\n")
+    f.write("// Method invocation wrappers\n")
+    f.write("//\n")
+    _gen_invoke_code(f, cls)
+
+    f.write("\n")
+    f.write("//\n")
+    f.write("// Function table registration code\n")
+    f.write("//\n")
+    _gen_regfunc_code(f, cls)
+
+
+def _mk_get_fname(nm):
+    return f"get_{nm}"
+
+
+def _mk_set_fname(nm):
+    return f"set_{nm}"
+
+
+def _mk_mth_fname(nm):
+    return f"mth_{nm}"
+
+
+def _make_prop_signature(func_name):
+    return f"{func_name}(qlib::LVarArgs &vargs)"
+
+
+def _make_method_signature(mth):
+    return f"{_mk_mth_fname(mth.name)}(qlib::LVarArgs &vargs)"
+
+
+def _make_getter_mth(prop, cxxname):
+    mth = MethodDef(
+        method_name=prop.prop_name,
+        return_type=prop,
+        args=[],
+        redirect=False,
+        cxx_name=cxxname,
+    )
+    return mth
+
+
+def _make_setter_mth(prop, cxxname):
+    void_type = TypeObj(type_name="void")
+    mth = MethodDef(
+        method_name=prop.prop_name,
+        return_type=void_type,
+        args=[prop.prop_type],
+        redirect=False,
+        cxx_name=cxxname,
+    )
+    return mth
+
+
+# convert type structure to C++ type name
+def _gen_conv_to_cxx_type(type_obj):
+    typename = type_obj.type_name
+    if is_intrinsic_type(typename):
+        vtn = get_var_type_name(typename)
+        return f"qlib::L{vtn}"
+
+    elif typename == "object":
+        cxxname = qif_to_cli_clsname(type_obj.obj_type)
+        if type_obj.ref:
+            # To SmartPtr
+            return f"qlib::LScrSp< {cxxname} >"
+        else:
+            # # To value (const reference)
+            # return "const $cxxname &";
+
+            # To value
+            return f"{cxxname} "
+    else:
+        raise RuntimeError(f"unknown type: {type_obj}")
+
+
+# make variant's C++ getter method name from type structure
+def _make_var_getter_method(type_obj):
+    typename = type_obj.type_name
+    if typename == "enum":
+        return "EnumInt"
+    elif is_intrinsic_type(typename):
+        # this just capitalize the typename
+        vtn = get_var_type_name(typename)
+        return f"{vtn}Value"
+    elif typename == "object":
+        cxxname = qif_to_cli_clsname(type_obj.obj_type)
+        if type_obj.ref:
+            # To SmartPtr
+            return f"SPtrValueT< {cxxname} >"
+        else:
+            # To value (const reference)
+            return f"ObjectRefT< {cxxname} >"
+    else:
+        raise RuntimeError(f"unknown type: {type_obj}")
+
+
+# generate code for converting LVarArgs to C++ arguments
+def _gen_lvar_to_cxx_conv(f, cls, mth):
+    # qif = cls.qif_name
+    args = mth.args
+    nargs = len(args)
+    argsnm = "vargs"
+
+    f.write(f"  {argsnm}.checkArgSize({nargs});\n")
+    f.write("  \n")
+    f.write(f"  client_t* pthis = {argsnm}.getThisPtr<client_t>();\n")
+    f.write("  \n")
+
+    ind = 0
+    for arg in args:
+        cxxtype = _gen_conv_to_cxx_type(arg)
+        vrnt_mth = _make_var_getter_method(arg)
+
+        if arg.type == "enum":
+            cxx_wp_clsname = cls.get_wp_clsname()
+            vrnt_mth = f"{vrnt_mth}<{cxx_wp_clsname}>"
+
+        f.write(f"  {cxxtype} arg{ind}\n")
+        f.write(f'  convTo{vrnt_mth}(arg{ind}, {argsnm}.get({ind}), "{arg.name}");\n')
+
+        ind += 1
+
+
+# generate common invocation body code
+def _gen_invoke_body(f, cls, mth):
+    thisnm = "pthis"
+    cxxnm = mth.cxxname
+    tmp = []
+    for i in range(len(mth.args)):
+        tmp.append(f"arg{i}")
+    strargs = ",".join(tmp)
+
+    rval_typename = mth.rettype.type_name
+
+    if rval_typename == "void":
+        f.write("\n")
+        f.write(f"  {thisnm}->{cxxnm}({strargs});\n")
+        f.write("\n")
+        f.write("  vargs.setRetVoid();\n")
+    else:
+        vrnt_mth = _make_var_getter_method(mth.rettype)
+        type_name = mth.rettype.type_name
+        if type_name == "enum":
+            cxx_wp_clsname = cls.get_wp_clsname()
+            vrnt_mth = f"{vrnt_mth}<{cxx_wp_clsname}>"
+
+        # Right-hand side
+        rhs = f"{thisnm}->{cxxnm}({strargs})"
+
+        f.write("  LVariant &rval = vargs.retval();\n")
+        f.write("\n")
+        # f.write("  rval.set${vrnt_mth}( ${thisnm}->${cxxnm}($strargs) );\n")
+        f.write(f'  setBy{vrnt_mth}( rval, {rhs}, "{type_name}" );\n')
+        f.write("\n")
+    return
+
+
+#
+# Generate getter/setter implementation code
+#
+def _gen_get_set_impl(f, cls, prop, flag):
+    thisnm = "pthis"
+    mth = None
+
+    # # Redirection (1) <-- not used in current impl
+    # if contains(prop.options, "redirect"):
+    #     if flag == "get":
+    #         mth = _make_getter_mth(prop, f"get_{prop.cppname}")
+    #     elif flag == "set":
+    #         mth = _make_setter_mth(prop, f"set_{prop.cppname}")
+    #     _gen_invoke_body(f, cls, mth)
+    #     return
+
+    # Redirection
+    if prop.redirect:
+        getnm = prop.cxx_getter_name
+        setnm = prop.cxx_setter_name
+        if flag == "get":
+            mth = _make_getter_mth(prop, getnm)
+        elif flag == "set":
+            mth = _make_setter_mth(prop, setnm)
+        _gen_invoke_body(f, cls, mth)
+        return
+
+    # Direct access
+    cxxnm = prop.cxx_field_name
+    prop_type = prop.prop_type
+
+    vrnt_mth = _make_var_getter_method(prop_type)
+    if prop_type.type_name == "enum":
+        cxx_wp_clsname = cls.get_wp_clsname()
+        vrnt_mth = f"{vrnt_mth}<{cxx_wp_clsname}>"
+
+    if flag == "get":
+        # Right-hand side
+        rhs = f"{thisnm}->{cxxnm}"
+        prop_name = prop.prop_name
+
+        f.write("\n")
+        f.write("  LVariant &rval = vargs.retval();\n")
+        f.write("\n")
+        # f.write("  rval.set${vrnt_mth}( ${thisnm}->${cxxnm} );\n")
+        f.write(f'  setBy{vrnt_mth}( rval, {rhs}, "{prop_name}");\n')
+        f.write("\n")
+    elif flag == "set":
+        f.write("\n")
+        f.write(f"  {thisnm}->{cxxnm} = arg0;\n")
+        f.write("\n")
+
+    return
+
+
+def _gen_property_code(f, cls):
+    # qifname = cls.qifname
+    cxx_wp_clsname = cls.get_wp_clsname()
+    props = cls.properties
+    if len(props) == 0:
+        return
+    for propnm, prop in props.items():
+        typenm = prop.prop_type.type_name
+        # is_ptr = prop.prop_type.ref
+        # qiftype = prop.prop_type.obj_type
+        cppnm = prop.cpp_field_name
+        tid = get_var_type_name(typenm)
+        getter_name = _mk_get_fname(propnm)
+        setter_name = _mk_set_fname(propnm)
+
+        f.write("\n")
+        f.write(f"// property handling impl for {propnm} ({typenm} {cppnm})\n")
+        f.write("\n")
+
+        # Getter
+        f.write("// static\n")
+        f.write(f"bool {cxx_wp_clsname}::{_make_prop_signature(getter_name)}\n")
+        f.write("{\n")
+
+        mth = _make_getter_mth(prop, "*")
+        _gen_lvar_to_cxx_conv(cls, mth)
+        _gen_get_set_impl(cls, prop, "get")
+
+        f.write("  return true;\n")
+        f.write("}\n")
+
+        # Setter
+        # next if (contains($prop->{"options"}, "readonly"));
+        # $mth = makeFakeSetterMth($prop, "dset_$propnm");
+        # print $fhout "//static\n";
+        # print $fhout "bool $cpp_wp_clsname\::".mkPropSgnt($setter_name)."\n";
+        # print $fhout "{\n";
+
+        # genLVarToCxxConv($cls, $mth);
+        # genGetSetImpl($cls, $prop, "set");
+
+        # print $fhout "  return true;\n";
+        # print $fhout "}\n";
+
+    return
+
+
+def _gen_invoke_code(f, cls):
+    return
+
+
+def _gen_regfunc_code(f, cls):
+    return
 
 
 def gen_cxx_source(target, output_path):
