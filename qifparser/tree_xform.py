@@ -184,6 +184,8 @@ class TreeXform(Transformer):
                 prop_name = item.children[0].value
                 # print(f"proprety name : {prop_name}")
                 prop.prop_name = prop_name
+                if prop.prop_type is not None:
+                    prop.prop_type.name = prop_name
             elif item.data == "prop_redirect_clause":
                 assert len(item.children) == 2
                 getter, setter = item.children
@@ -238,6 +240,9 @@ class TreeXform(Transformer):
             assert item.data == "method_arg"
             assert len(item.children) >= 1
             arg = item.children[0]
+            if len(item.children) >= 2:
+                name = item.children[1]
+                arg.name = name.value
             args.append(arg)
             # print(f"method_arg {arg=}")
         return args

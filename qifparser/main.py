@@ -3,7 +3,7 @@ import argparse
 from pathlib import Path
 from qifparser.tree_xform import TreeXform
 from qifparser.parser import parse_file
-from qifparser.cxx_wrapper import gen_cxx_source
+from qifparser.cxx_wrapper import CxxWrapGen
 from qifparser.tree_xform import get_pending_load, remove_pending_load
 
 
@@ -75,7 +75,8 @@ def main():
 
     if args.mode == "cxx_src":
         logger.debug(f"{result=}")
-        gen_cxx_source(result, output_path)
+        gen = CxxWrapGen(result)
+        gen.generate(output_path)
 
 
 if __name__ == "__main__":

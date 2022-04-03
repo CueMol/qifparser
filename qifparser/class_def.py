@@ -96,9 +96,10 @@ class ClassDef:
 
 @dataclass
 class TypeObj:
-    type_name: Optional[str] = None
+    type_name: str
     ref: bool = False
     obj_type: Optional[str] = None
+    name: str = ""
 
 
 @dataclass
@@ -112,6 +113,9 @@ class PropertyDef:
     cxx_field_name: Optional[str] = None
     default_cxx_rval: Optional[str] = None
     modifiers: List[str] = field(default_factory=list)
+
+    def is_readonly(self):
+        return "readonly" in self.modifiers
 
 
 @dataclass
