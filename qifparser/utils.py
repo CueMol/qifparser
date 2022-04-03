@@ -27,3 +27,10 @@ def is_intrinsic_type(typenm):
         return True
     else:
         return False
+
+
+def format_type(typeobj):
+    if typeobj.type_name == "object":
+        return f"object<{typeobj.obj_type}>"
+    else:
+        return typeobj.type_name

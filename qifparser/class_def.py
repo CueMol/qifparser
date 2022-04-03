@@ -22,7 +22,7 @@ class ClassDef:
 
     properties: Dict[str, Any] = field(default_factory=dict)
     methods: Dict[str, Any] = field(default_factory=dict)
-    enumdefs: Dict[str, str] = field(default_factory=dict)
+    enumdefs: Dict[str, Any] = field(default_factory=dict)
 
     def set_class_name(self, cls_name):
         self.curcls = cls_name

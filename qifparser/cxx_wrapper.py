@@ -1,7 +1,7 @@
 import logging
 from qifparser.parser import get_class_def
 from qifparser._version import __version__
-from qifparser.utils import get_var_type_name, is_intrinsic_type
+from qifparser.utils import get_var_type_name, is_intrinsic_type, format_type
 from qifparser.class_def import MethodDef, TypeObj
 
 logger = logging.getLogger(__name__)
@@ -38,9 +38,119 @@ class CxxWrapGen:
         logger.info(f"Wrote file: {output_path}")
 
     def _gen_invoke_code(self):
+        f = self.f
+        cls = self.cls
+
+        cxx_wp_clsname = cls.get_wp_clsname()
+        mths = cls.methods
+        for nm, mth in mths.items():
+            f.write("\n")
+            f.write(f"// method invocation impl for {nm}\n")
+            f.write("\n")
+            f.write("// static\n")
+            f.write(f"bool {cxx_wp_clsname}::{_make_method_signature(mth)}\n")
+            f.write("{\n")
+            self._gen_lvar_to_cxx_conv(mth)
+            self._gen_invoke_body(mth)
+            f.write("  return true;\n")
+            f.write("}\n")
+
         return
 
+    #
+    # generate registration code
+    #
     def _gen_regfunc_code(self):
+        f = self.f
+        cls = self.cls
+
+        cxx_wp_clsname = cls.get_wp_clsname()
+
+        f.write("\n")
+        f.write("// static\n")
+        f.write("void $cpp_wp_clsname\::funcReg(qlib::FuncMap *pmap)\n")
+        f.write("{\n")
+
+        # Class name tag
+        class_key = f"@implement_{cls.qifname}"
+        f.write(f'  pmap->putPropAttr("{class_key}", "yes");\n')
+        f.write("\n")
+
+        # Properties
+        props = cls.properties
+        for propnm, prop in props.items():
+            rprop_opts = prop.modifiers
+            getter_name = _mk_get_fname(propnm)
+            setter_name = _mk_set_fname(propnm)
+            proptype = format_type(prop.prop_type)
+
+            f.write(f'  if (! pmap->hasProp("{propnm}") ) {{\n')
+
+            # attribute (typename)
+            f.write(f'    pmap->putPropAttr("{propnm}", "{proptype}");\n')
+
+            # attribute (nopersist)
+            if "nopersist" in rprop_opts:
+                f.write(f'    pmap->putPropAttr("@{propnm}_nopersist", "yes");\n')
+
+            # getter
+            f.write(
+                f'    pmap->putFunc("{getter_name}", &{cxx_wp_clsname}::{getter_name});\n'
+            )
+
+            if "readonly" not in rprop_opts:
+                # setter
+                f.write(
+                    f'    pmap->putFunc("{setter_name}", &{cxx_wp_clsname}::{setter_name});\n'
+                )
+
+            f.write("  }\n")
+
+        # Methods
+        mths = cls.methods
+        for nm, mth in mths.items():
+            mth_name = _mk_mth_fname(nm)
+            f.write(f'  pmap->putFunc("{mth_name}", &{cxx_wp_clsname}::{mth_name});\n')
+        enum_keys = sorted(cls.enumdefs.keys())
+        for nm in enum_keys:
+            enumdef = cls.enumdefs[nm]
+            f.write(f"  // Enum def for {nm}\n")
+            enums = sorted(enumdef.enum_data.keys())
+            for defnm in enums:
+                value = enumdef.enum_data[defnm]
+                f.write(f'  pmap->putEnumDef("{nm}", "{defnm}", {value});\n')
+        f.write("\n")
+
+        # Generate code for importing super classes
+        extends = cls.extends_wrapper
+        for i in extends:
+            f.write(f"  ::{i}_funcReg(pmap);\n")
+        f.write("\n")
+
+        # Default value
+        for propnm, prop in props.items():
+            rprop_opts = prop.modifiers
+            if prop.default_cxx_rval is not None and not prop.is_readonly():
+                vrnt_mth = _make_var_getter_method(prop.prop_type)
+                cxxdefault = prop.default_cxx_rval
+                f.write("  {\n")
+                f.write("    qlib::LVariant defval;\n")
+                # f.write("    defval.set${mthnm}($cxxdefault);\n")
+                f.write(f'    setBy{vrnt_mth}( defval, {cxxdefault}, "{propnm}" );\n')
+                f.write(f'    pmap->putDefVal("{propnm}", defval);\n')
+                f.write("  }\n")
+
+        f.write("}\n")
+        f.write("\n")
+
+        # Register function def
+        # modifier = cls.dllexport
+        f.write("\n")
+        f.write(f"void {cxx_wp_clsname}_funcReg(qlib::FuncMap *pmap)\n")
+        f.write("{\n")
+        f.write(f"    {cxx_wp_clsname}::funcReg(pmap);\n")
+        f.write("}\n")
+
         return
 
     def _gen_property_code(self):
@@ -49,12 +159,8 @@ class CxxWrapGen:
 
         cxx_wp_clsname = cls.get_wp_clsname()
         props = cls.properties
-        if len(props) == 0:
-            return
         for propnm, prop in props.items():
             typenm = prop.prop_type.type_name
-            # is_ptr = prop.prop_type.ref
-            # qiftype = prop.prop_type.obj_type
             if prop.redirect:
                 cppnm = prop.cxx_getter_name + "/" + prop.cxx_setter_name
             else:
@@ -177,7 +283,7 @@ class CxxWrapGen:
         mth = None
 
         # # Redirection (1) <-- not used in current impl
-        # if contains(prop.options, "redirect"):
+        # if contains(prop.modifiers, "redirect"):
         #     if flag == "get":
         #         mth = _make_getter_mth(prop, f"get_{prop.cppname}")
         #     elif flag == "set":
@@ -327,6 +433,8 @@ class CxxWrapGen:
         f.write("//\n")
         self._gen_regfunc_code()
 
+        return
+
 
 def _mk_get_fname(nm):
     return f"get_{nm}"
@@ -345,7 +453,7 @@ def _make_prop_signature(func_name):
 
 
 def _make_method_signature(mth):
-    return f"{_mk_mth_fname(mth.name)}(qlib::LVarArgs &vargs)"
+    return f"{_mk_mth_fname(mth.method_name)}(qlib::LVarArgs &vargs)"
 
 
 def _make_getter_mth(prop, cxxname):
