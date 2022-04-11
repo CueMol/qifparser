@@ -3,6 +3,7 @@ from qifparser.parser import get_class_def
 from qifparser._version import __version__
 from qifparser.utils import get_var_type_name, is_intrinsic_type, format_type
 from qifparser.class_def import MethodDef, TypeObj
+from qifparser.base_srcgen import BaseSrcGen
 
 logger = logging.getLogger(__name__)
 
@@ -15,45 +16,23 @@ def qif_to_cli_clsname(qifname):
     return cls_obj.cxx_name
 
 
-class CxxWrapGen:
-    def __init__(self, class_def):
-        self.cls = class_def
-        self.f = None
-        self.output_path = None
-
-    def generate(self, output_path):
-        output_path.parent.mkdir(exist_ok=True, parents=True)
-        with output_path.open("w") as f:
-            self.f = f
-            self.output_path = output_path
-            try:
-                self._gen_cxx_src_impl(output_path)
-            except Exception:
-                if output_path.is_file():
-                    output_path.unlink()
-                raise
-            finally:
-                self.f = None
-                self.output_path = None
-        logger.info(f"Wrote file: {output_path}")
-
+class CxxWrapGen(BaseSrcGen):
     def _gen_invoke_code(self):
-        f = self.f
         cls = self.cls
 
         cxx_wp_clsname = cls.get_wp_clsname()
         mths = cls.methods
         for nm, mth in mths.items():
-            f.write("\n")
-            f.write(f"// method invocation impl for {nm}\n")
-            f.write("\n")
-            f.write("// static\n")
-            f.write(f"bool {cxx_wp_clsname}::{_make_method_signature(mth)}\n")
-            f.write("{\n")
+            self.wr("\n")
+            self.wr(f"// method invocation impl for {nm}\n")
+            self.wr("\n")
+            self.wr("// static\n")
+            self.wr(f"bool {cxx_wp_clsname}::{_make_method_signature(mth)}\n")
+            self.wr("{\n")
             self._gen_lvar_to_cxx_conv(mth)
             self._gen_invoke_body(mth)
-            f.write("  return true;\n")
-            f.write("}\n")
+            self.wr("  return true;\n")
+            self.wr("}\n")
 
         return
 
@@ -61,20 +40,19 @@ class CxxWrapGen:
     # generate registration code
     #
     def _gen_regfunc_code(self):
-        f = self.f
         cls = self.cls
 
         cxx_wp_clsname = cls.get_wp_clsname()
 
-        f.write("\n")
-        f.write("// static\n")
-        f.write("void $cpp_wp_clsname\::funcReg(qlib::FuncMap *pmap)\n")
-        f.write("{\n")
+        self.wr("\n")
+        self.wr("// static\n")
+        self.wr("void $cpp_wp_clsname::funcReg(qlib::FuncMap *pmap)\n")
+        self.wr("{\n")
 
         # Class name tag
         class_key = f"@implement_{cls.qifname}"
-        f.write(f'  pmap->putPropAttr("{class_key}", "yes");\n')
-        f.write("\n")
+        self.wr(f'  pmap->putPropAttr("{class_key}", "yes");\n')
+        self.wr("\n")
 
         # Properties
         props = cls.properties
@@ -84,48 +62,48 @@ class CxxWrapGen:
             setter_name = _mk_set_fname(propnm)
             proptype = format_type(prop.prop_type)
 
-            f.write(f'  if (! pmap->hasProp("{propnm}") ) {{\n')
+            self.wr(f'  if (! pmap->hasProp("{propnm}") ) {{\n')
 
             # attribute (typename)
-            f.write(f'    pmap->putPropAttr("{propnm}", "{proptype}");\n')
+            self.wr(f'    pmap->putPropAttr("{propnm}", "{proptype}");\n')
 
             # attribute (nopersist)
             if "nopersist" in rprop_opts:
-                f.write(f'    pmap->putPropAttr("@{propnm}_nopersist", "yes");\n')
+                self.wr(f'    pmap->putPropAttr("@{propnm}_nopersist", "yes");\n')
 
             # getter
-            f.write(
+            self.wr(
                 f'    pmap->putFunc("{getter_name}", &{cxx_wp_clsname}::{getter_name});\n'
             )
 
             if "readonly" not in rprop_opts:
                 # setter
-                f.write(
+                self.wr(
                     f'    pmap->putFunc("{setter_name}", &{cxx_wp_clsname}::{setter_name});\n'
                 )
 
-            f.write("  }\n")
+            self.wr("  }\n")
 
         # Methods
         mths = cls.methods
-        for nm, mth in mths.items():
+        for nm, _ in mths.items():
             mth_name = _mk_mth_fname(nm)
-            f.write(f'  pmap->putFunc("{mth_name}", &{cxx_wp_clsname}::{mth_name});\n')
+            self.wr(f'  pmap->putFunc("{mth_name}", &{cxx_wp_clsname}::{mth_name});\n')
         enum_keys = sorted(cls.enumdefs.keys())
         for nm in enum_keys:
             enumdef = cls.enumdefs[nm]
-            f.write(f"  // Enum def for {nm}\n")
+            self.wr(f"  // Enum def for {nm}\n")
             enums = sorted(enumdef.enum_data.keys())
             for defnm in enums:
                 value = enumdef.enum_data[defnm]
-                f.write(f'  pmap->putEnumDef("{nm}", "{defnm}", {value});\n')
-        f.write("\n")
+                self.wr(f'  pmap->putEnumDef("{nm}", "{defnm}", {value});\n')
+        self.wr("\n")
 
         # Generate code for importing super classes
         extends = cls.extends_wrapper
         for i in extends:
-            f.write(f"  ::{i}_funcReg(pmap);\n")
-        f.write("\n")
+            self.wr(f"  ::{i}_funcReg(pmap);\n")
+        self.wr("\n")
 
         # Default value
         for propnm, prop in props.items():
@@ -133,28 +111,27 @@ class CxxWrapGen:
             if prop.default_cxx_rval is not None and not prop.is_readonly():
                 vrnt_mth = _make_var_getter_method(prop.prop_type)
                 cxxdefault = prop.default_cxx_rval
-                f.write("  {\n")
-                f.write("    qlib::LVariant defval;\n")
-                # f.write("    defval.set${mthnm}($cxxdefault);\n")
-                f.write(f'    setBy{vrnt_mth}( defval, {cxxdefault}, "{propnm}" );\n')
-                f.write(f'    pmap->putDefVal("{propnm}", defval);\n')
-                f.write("  }\n")
+                self.wr("  {\n")
+                self.wr("    qlib::LVariant defval;\n")
+                # self.wr("    defval.set${mthnm}($cxxdefault);\n")
+                self.wr(f'    setBy{vrnt_mth}( defval, {cxxdefault}, "{propnm}" );\n')
+                self.wr(f'    pmap->putDefVal("{propnm}", defval);\n')
+                self.wr("  }\n")
 
-        f.write("}\n")
-        f.write("\n")
+        self.wr("}\n")
+        self.wr("\n")
 
         # Register function def
         # modifier = cls.dllexport
-        f.write("\n")
-        f.write(f"void {cxx_wp_clsname}_funcReg(qlib::FuncMap *pmap)\n")
-        f.write("{\n")
-        f.write(f"    {cxx_wp_clsname}::funcReg(pmap);\n")
-        f.write("}\n")
+        self.wr("\n")
+        self.wr(f"void {cxx_wp_clsname}_funcReg(qlib::FuncMap *pmap)\n")
+        self.wr("{\n")
+        self.wr(f"    {cxx_wp_clsname}::funcReg(pmap);\n")
+        self.wr("}\n")
 
         return
 
     def _gen_property_code(self):
-        f = self.f
         cls = self.cls
 
         cxx_wp_clsname = cls.get_wp_clsname()
@@ -165,33 +142,33 @@ class CxxWrapGen:
                 cppnm = prop.cxx_getter_name + "/" + prop.cxx_setter_name
             else:
                 cppnm = prop.cxx_field_name
-            tid = get_var_type_name(typenm)
+            # tid = get_var_type_name(typenm)
             getter_name = _mk_get_fname(propnm)
             setter_name = _mk_set_fname(propnm)
 
-            f.write("\n")
-            f.write(f"// property handling impl for {propnm} ({typenm} {cppnm})\n")
-            f.write("\n")
+            self.wr("\n")
+            self.wr(f"// property handling impl for {propnm} ({typenm} {cppnm})\n")
+            self.wr("\n")
 
             # Getter
-            f.write("// static\n")
-            f.write(f"bool {cxx_wp_clsname}::{_make_prop_signature(getter_name)}\n")
-            f.write("{\n")
+            self.wr("// static\n")
+            self.wr(f"bool {cxx_wp_clsname}::{_make_prop_signature(getter_name)}\n")
+            self.wr("{\n")
 
             mth = _make_getter_mth(prop, "*")
             self._gen_lvar_to_cxx_conv(mth)
             self._gen_get_set_impl(prop, "get")
 
-            f.write("  return true;\n")
-            f.write("}\n")
+            self.wr("  return true;\n")
+            self.wr("}\n")
 
             # Setter
             # next if (contains($prop->{"options"}, "readonly"));
             if prop.is_readonly():
                 continue
-            f.write("// static\n")
-            f.write(f"bool {cxx_wp_clsname}::{_make_prop_signature(setter_name)}\n")
-            f.write("{\n")
+            self.wr("// static\n")
+            self.wr(f"bool {cxx_wp_clsname}::{_make_prop_signature(setter_name)}\n")
+            self.wr("{\n")
 
             # $mth = makeFakeSetterMth($prop, "dset_$propnm");
             mth = _make_setter_mth(prop, f"dset_{propnm}")
@@ -200,24 +177,23 @@ class CxxWrapGen:
             # genGetSetImpl($cls, $prop, "set");
             self._gen_get_set_impl(prop, "set")
 
-            f.write("  return true;\n")
-            f.write("}\n")
+            self.wr("  return true;\n")
+            self.wr("}\n")
 
         return
 
     # generate code for converting LVarArgs to C++ arguments
     def _gen_lvar_to_cxx_conv(self, mth):
-        f = self.f
         cls = self.cls
 
         args = mth.args
         nargs = len(args)
         argsnm = "vargs"
 
-        f.write(f"  {argsnm}.checkArgSize({nargs});\n")
-        f.write("  \n")
-        f.write(f"  client_t* pthis = {argsnm}.getThisPtr<client_t>();\n")
-        f.write("  \n")
+        self.wr(f"  {argsnm}.checkArgSize({nargs});\n")
+        self.wr("  \n")
+        self.wr(f"  client_t* pthis = {argsnm}.getThisPtr<client_t>();\n")
+        self.wr("  \n")
 
         ind = 0
         for arg in args:
@@ -228,8 +204,8 @@ class CxxWrapGen:
                 cxx_wp_clsname = cls.get_wp_clsname()
                 vrnt_mth = f"{vrnt_mth}<{cxx_wp_clsname}>"
 
-            f.write(f"  {cxxtype} arg{ind}\n")
-            f.write(
+            self.wr(f"  {cxxtype} arg{ind}\n")
+            self.wr(
                 f'  convTo{vrnt_mth}(arg{ind}, {argsnm}.get({ind}), "{arg.name}");\n'
             )
 
@@ -239,7 +215,6 @@ class CxxWrapGen:
 
     # generate common invocation body code
     def _gen_invoke_body(self, mth):
-        f = self.f
         cls = self.cls
         thisnm = "pthis"
         cxxnm = mth.cxx_name
@@ -252,10 +227,10 @@ class CxxWrapGen:
         rval_typename = rettype.type_name
 
         if rval_typename == "void":
-            f.write("\n")
-            f.write(f"  {thisnm}->{cxxnm}({strargs});\n")
-            f.write("\n")
-            f.write("  vargs.setRetVoid();\n")
+            self.wr("\n")
+            self.wr(f"  {thisnm}->{cxxnm}({strargs});\n")
+            self.wr("\n")
+            self.wr("  vargs.setRetVoid();\n")
         else:
             vrnt_mth = _make_var_getter_method(rettype)
             type_name = rettype.type_name
@@ -266,18 +241,17 @@ class CxxWrapGen:
             # Right-hand side
             rhs = f"{thisnm}->{cxxnm}({strargs})"
 
-            f.write("  LVariant &rval = vargs.retval();\n")
-            f.write("\n")
-            # f.write("  rval.set${vrnt_mth}( ${thisnm}->${cxxnm}($strargs) );\n")
-            f.write(f'  setBy{vrnt_mth}( rval, {rhs}, "{type_name}" );\n')
-            f.write("\n")
+            self.wr("  LVariant &rval = vargs.retval();\n")
+            self.wr("\n")
+            # self.wr("  rval.set${vrnt_mth}( ${thisnm}->${cxxnm}($strargs) );\n")
+            self.wr(f'  setBy{vrnt_mth}( rval, {rhs}, "{type_name}" );\n')
+            self.wr("\n")
         return
 
     #
     # Generate getter/setter implementation code
     #
     def _gen_get_set_impl(self, prop, flag):
-        f = self.f
         cls = self.cls
         thisnm = "pthis"
         mth = None
@@ -316,50 +290,46 @@ class CxxWrapGen:
             rhs = f"{thisnm}->{cxxnm}"
             prop_name = prop.prop_name
 
-            f.write("\n")
-            f.write("  LVariant &rval = vargs.retval();\n")
-            f.write("\n")
-            # f.write("  rval.set${vrnt_mth}( ${thisnm}->${cxxnm} );\n")
-            f.write(f'  setBy{vrnt_mth}( rval, {rhs}, "{prop_name}");\n')
-            f.write("\n")
+            self.wr("\n")
+            self.wr("  LVariant &rval = vargs.retval();\n")
+            self.wr("\n")
+            # self.wr("  rval.set${vrnt_mth}( ${thisnm}->${cxxnm} );\n")
+            self.wr(f'  setBy{vrnt_mth}( rval, {rhs}, "{prop_name}");\n')
+            self.wr("\n")
         elif flag == "set":
-            f.write("\n")
-            f.write(f"  {thisnm}->{cxxnm} = arg0;\n")
-            f.write("\n")
+            self.wr("\n")
+            self.wr(f"  {thisnm}->{cxxnm} = arg0;\n")
+            self.wr("\n")
 
         return
 
-    def _gen_src_preamble(self):
-        f = self.f
-        cls = self.cls
-        f.write("//\n")
-        f.write(f"// Auto-generated by qifparser {__version__}. Don't edit.\n")
-        f.write("//\n")
-        f.write("\n")
-        f.write(f"#include {common_inc}\n")
-        f.write("\n")
+    def _gen_preamble(self):
+        self.wr("//\n")
+        self.wr(f"// Auto-generated by qifparser {__version__}. Don't edit.\n")
+        self.wr("//\n")
+        self.wr("\n")
+        self.wr(f"#include {common_inc}\n")
+        self.wr("\n")
 
-    def _gen_src_class_loader(self):
-        f = self.f
+    def _gen_class_loader(self):
         cls = self.cls
         cxx_wp_clsname = cls.get_wp_clsname()
         cxx_cli_clsname = cls.cxx_name
 
-        f.write("\n")
-        f.write(f"SINGLETON_BASE_IMPL({cxx_wp_clsname});\n")
-        f.write("\n")
+        self.wr("\n")
+        self.wr(f"SINGLETON_BASE_IMPL({cxx_wp_clsname});\n")
+        self.wr("\n")
 
         if cls.is_cloneable():
-            f.write("MC_CLONEABLE_IMPL({cxx_cli_clsname});\n")
-            f.write("\n")
+            self.wr("MC_CLONEABLE_IMPL({cxx_cli_clsname});\n")
+            self.wr("\n")
 
-        f.write(f"MC_DYNCLASS_IMPL2({cxx_cli_clsname}, {cxx_wp_clsname});\n")
-        f.write(f"MC_PROP_IMPL2({cxx_cli_clsname}, {cxx_wp_clsname});\n")
-        f.write(f"MC_INVOKE_IMPL2({cxx_cli_clsname}, {cxx_wp_clsname});\n")
-        f.write("\n")
+        self.wr(f"MC_DYNCLASS_IMPL2({cxx_cli_clsname}, {cxx_wp_clsname});\n")
+        self.wr(f"MC_PROP_IMPL2({cxx_cli_clsname}, {cxx_wp_clsname});\n")
+        self.wr(f"MC_INVOKE_IMPL2({cxx_cli_clsname}, {cxx_wp_clsname});\n")
+        self.wr("\n")
 
-    def _gen_cxx_src_impl(self, output_path):
-        f = self.f
+    def generate_impl(self, output_path):
         target = self.cls
         qif_name = target.qifname
         cls = get_class_def(qif_name)
@@ -370,15 +340,15 @@ class CxxWrapGen:
         if cls.is_smart_ptr():
             cxx_cli_clsname = f"qlib::LScrSp<{cxx_cli_clsname}>"
 
-        self._gen_src_preamble()
+        self._gen_preamble()
 
-        f.write(f'#include "{cls.get_cxx_wp_incname()}"\n')
+        self.wr(f'#include "{cls.get_wp_hdr_fname()}"\n')
 
-        f.write("\n")
-        f.write("#include <qlib/ClassRegistry.hpp>\n")
-        f.write("#include <qlib/LVariant.hpp>\n")
-        # f.write("#include <qlib/LPropEvent.hpp>\n")
-        f.write("\n")
+        self.wr("\n")
+        self.wr("#include <qlib/ClassRegistry.hpp>\n")
+        self.wr("#include <qlib/LVariant.hpp>\n")
+        # self.wr("#include <qlib/LPropEvent.hpp>\n")
+        self.wr("\n")
 
         # TODO: impl?? (not used in current qif)
         # foreach my $f (@Parser::user_cxx_incfiles) {
@@ -390,47 +360,47 @@ class CxxWrapGen:
                 ref_cls = get_class_def(ref)
                 if ref_cls is None:
                     raise RuntimeError(f"class def not found: {ref}")
-                f.write(f'#include "{ref_cls.get_cxx_wp_incname()}"\n')
-            f.write("\n")
+                self.wr(f'#include "{ref_cls.get_wp_hdr_fname()}"\n')
+            self.wr("\n")
 
-        f.write("\n")
-        f.write("using qlib::LString;\n")
-        f.write("using qlib::LVariant;\n")
-        f.write("using qlib::LVarArgs;\n")
-        f.write("using qlib::LClass;\n")
-        f.write("using qlib::ClassRegistry;\n")
-        f.write("\n")
-        f.write(f"// XXX {cxx_wp_clsname}\n")
+        self.wr("\n")
+        self.wr("using qlib::LString;\n")
+        self.wr("using qlib::LVariant;\n")
+        self.wr("using qlib::LVarArgs;\n")
+        self.wr("using qlib::LClass;\n")
+        self.wr("using qlib::ClassRegistry;\n")
+        self.wr("\n")
+        self.wr(f"// XXX {cxx_wp_clsname}\n")
 
-        f.write("/////////////////////////////////////\n")
-        f.write(f"// Class loader code for the client class {cxx_cli_clsname}\n")
-        self._gen_src_class_loader()
-        f.write("\n")
+        self.wr("/////////////////////////////////////\n")
+        self.wr(f"// Class loader code for the client class {cxx_cli_clsname}\n")
+        self._gen_class_loader()
+        self.wr("\n")
 
-        f.write("/////////////////////////////////////\n")
-        f.write("//\n")
-        f.write(f"// Wrapper class for {cxx_cli_clsname}\n")
-        f.write("//\n")
-        f.write("\n")
+        self.wr("/////////////////////////////////////\n")
+        self.wr("//\n")
+        self.wr(f"// Wrapper class for {cxx_cli_clsname}\n")
+        self.wr("//\n")
+        self.wr("\n")
 
-        f.write("/////////////////////////////////////\n")
-        f.write("// Dispatch interface code\n")
-        f.write("\n")
-        f.write("//\n")
-        f.write("// Property getter/setter wrappers\n")
-        f.write("//\n")
+        self.wr("/////////////////////////////////////\n")
+        self.wr("// Dispatch interface code\n")
+        self.wr("\n")
+        self.wr("//\n")
+        self.wr("// Property getter/setter wrappers\n")
+        self.wr("//\n")
         self._gen_property_code()
 
-        f.write("\n")
-        f.write("//\n")
-        f.write("// Method invocation wrappers\n")
-        f.write("//\n")
+        self.wr("\n")
+        self.wr("//\n")
+        self.wr("// Method invocation wrappers\n")
+        self.wr("//\n")
         self._gen_invoke_code()
 
-        f.write("\n")
-        f.write("//\n")
-        f.write("// Function table registration code\n")
-        f.write("//\n")
+        self.wr("\n")
+        self.wr("//\n")
+        self.wr("// Function table registration code\n")
+        self.wr("//\n")
         self._gen_regfunc_code()
 
         return

@@ -87,11 +87,17 @@ class ClassDef:
         refcls = type_obj.obj_type
         self.append_refer_qif(refcls)
 
-    def get_cxx_wp_incname(self):
+    def get_wp_hdr_fname(self):
         if self.input_rel_path.parent is not None:
             return self.input_rel_path.parent / f"{self.qifname}_wrap.hpp"
         else:
             return Path(f"{self.qifname}_wrap.hpp")
+
+    def get_cli_hdr_fname(self):
+        if self.cli_header_name is not None:
+            return self.cli_header_name
+        else:
+            return f"{self.qifname}.hpp"
 
 
 @dataclass
