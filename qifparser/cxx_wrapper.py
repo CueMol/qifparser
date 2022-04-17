@@ -27,7 +27,7 @@ class CxxWrapGen(BaseSrcGen):
             self.wr(f"// method invocation impl for {nm}\n")
             self.wr("\n")
             self.wr("// static\n")
-            self.wr(f"bool {cxx_wp_clsname}::{_make_method_signature(mth)}\n")
+            self.wr(f"bool {cxx_wp_clsname}::{make_method_signature(mth)}\n")
             self.wr("{\n")
             self._gen_lvar_to_cxx_conv(mth)
             self._gen_invoke_body(mth)
@@ -58,8 +58,8 @@ class CxxWrapGen(BaseSrcGen):
         props = cls.properties
         for propnm, prop in props.items():
             rprop_opts = prop.modifiers
-            getter_name = _mk_get_fname(propnm)
-            setter_name = _mk_set_fname(propnm)
+            getter_name = mk_get_fname(propnm)
+            setter_name = mk_set_fname(propnm)
             proptype = format_type(prop.prop_type)
 
             self.wr(f'  if (! pmap->hasProp("{propnm}") ) {{\n')
@@ -143,8 +143,8 @@ class CxxWrapGen(BaseSrcGen):
             else:
                 cppnm = prop.cxx_field_name
             # tid = get_var_type_name(typenm)
-            getter_name = _mk_get_fname(propnm)
-            setter_name = _mk_set_fname(propnm)
+            getter_name = mk_get_fname(propnm)
+            setter_name = mk_set_fname(propnm)
 
             self.wr("\n")
             self.wr(f"// property handling impl for {propnm} ({typenm} {cppnm})\n")
@@ -152,7 +152,7 @@ class CxxWrapGen(BaseSrcGen):
 
             # Getter
             self.wr("// static\n")
-            self.wr(f"bool {cxx_wp_clsname}::{_make_prop_signature(getter_name)}\n")
+            self.wr(f"bool {cxx_wp_clsname}::{make_prop_signature(getter_name)}\n")
             self.wr("{\n")
 
             mth = _make_getter_mth(prop, "*")
@@ -167,7 +167,7 @@ class CxxWrapGen(BaseSrcGen):
             if prop.is_readonly():
                 continue
             self.wr("// static\n")
-            self.wr(f"bool {cxx_wp_clsname}::{_make_prop_signature(setter_name)}\n")
+            self.wr(f"bool {cxx_wp_clsname}::{make_prop_signature(setter_name)}\n")
             self.wr("{\n")
 
             # $mth = makeFakeSetterMth($prop, "dset_$propnm");
@@ -406,11 +406,11 @@ class CxxWrapGen(BaseSrcGen):
         return
 
 
-def _mk_get_fname(nm):
+def mk_get_fname(nm):
     return f"get_{nm}"
 
 
-def _mk_set_fname(nm):
+def mk_set_fname(nm):
     return f"set_{nm}"
 
 
@@ -418,11 +418,11 @@ def _mk_mth_fname(nm):
     return f"mth_{nm}"
 
 
-def _make_prop_signature(func_name):
+def make_prop_signature(func_name):
     return f"{func_name}(qlib::LVarArgs &vargs)"
 
 
-def _make_method_signature(mth):
+def make_method_signature(mth):
     return f"{_mk_mth_fname(mth.method_name)}(qlib::LVarArgs &vargs)"
 
 

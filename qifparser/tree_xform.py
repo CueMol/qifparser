@@ -28,6 +28,13 @@ def get_pending_load():
     return _pending_load
 
 
+def remove_quot(inp):
+    if inp[0] == '"' and inp[-1] == '"':
+        return inp[1:-1]
+    else:
+        return inp
+
+
 class TreeXform(Transformer):
     def __init__(self, target_file, top_srcdir, include_paths=None, moddef_mode=False):
         input_dir = target_file.parent
@@ -82,7 +89,7 @@ class TreeXform(Transformer):
             raise RuntimeError(f"file not found: {value} in {self.include_paths}")
 
         if load_file == self.target_file:
-            raise RuntimeError(f"reentrant include statement")
+            raise RuntimeError("reentrant include statement")
         # parse_file(self, load_file)
         add_pending_load(load_file)
         return f"import {load_file}"
@@ -141,14 +148,14 @@ class TreeXform(Transformer):
         if stmt_name == "client_header_stmt":
             header_name = tree[0].children[0].value
             # print(f"{header_name=}")
-            target.cli_header_name = header_name
+            target.cli_header_name = remove_quot(header_name)
         elif stmt_name == "client_name_stmt":
             cxx_name = tree[0].children[0].value
             # print(f"{cxx_name=}")
             target.cxx_name = cxx_name
         elif stmt_name == "dllexport_stmt":
             # TODO: impl
-            logger.warning(f"dllexport ignored")
+            logger.warning("dllexport ignored")
         elif stmt_name in self.class_attrib_names:
             # Attributes
             option = stmt_name

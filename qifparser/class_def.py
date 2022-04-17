@@ -65,6 +65,9 @@ class ClassDef:
             raise RuntimeError(f"enumdef {name} already defined in {self.curcls}")
         self.enumdefs[name] = enum_def
 
+    def is_singleton(self):
+        return "singleton" in self.options
+
     def is_smart_ptr(self):
         return "smartptr" in self.options
 
