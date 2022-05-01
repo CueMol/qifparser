@@ -222,12 +222,12 @@ class CxxWrapGen(BaseSrcGen):
     def _gen_invoke_body(self, mth):
         cls = self.cls
         thisnm = "pthis"
-        cxxnm = mth.cxx_name
+        cxxnm = mth.get_cxx_name()
         rettype = mth.return_type
         tmp = []
         for i in range(len(mth.args)):
             tmp.append(f"arg{i}")
-        strargs = ",".join(tmp)
+        strargs = ", ".join(tmp)
 
         rval_typename = rettype.type_name
 
@@ -238,18 +238,16 @@ class CxxWrapGen(BaseSrcGen):
             self.wr("  vargs.setRetVoid();\n")
         else:
             vrnt_mth = _make_var_getter_method(rettype)
-            type_name = rettype.type_name
-            if type_name == "enum":
+            if rettype.type_name == "enum":
                 cpp_wp_clsname = cls.get_wp_clsname()
                 vrnt_mth = f"{vrnt_mth}<{cpp_wp_clsname}>"
 
-            # Right-hand side
+            # Right-hand side (return value) processing
             rhs = f"{thisnm}->{cxxnm}({strargs})"
 
             self.wr("  LVariant &rval = vargs.retval();\n")
             self.wr("\n")
-            # self.wr("  rval.set${vrnt_mth}( ${thisnm}->${cxxnm}($strargs) );\n")
-            self.wr(f'  setBy{vrnt_mth}( rval, {rhs}, "{type_name}" );\n')
+            self.wr(f'  setBy{vrnt_mth}( rval, {rhs}, "{rettype.name}" );\n')
             self.wr("\n")
         return
 

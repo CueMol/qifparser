@@ -136,6 +136,12 @@ class MethodDef:
     redirect: bool = False
     cxx_name: Optional[str] = None
 
+    def get_cxx_name(self):
+        if self.cxx_name is not None:
+            return self.cxx_name
+        else:
+            return self.method_name
+
 
 @dataclass
 class EnumDef:
