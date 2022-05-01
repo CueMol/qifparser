@@ -78,7 +78,7 @@ class CxxHdrGen(BaseSrcGen):
         # Declare ctor/dtor
         self.wr("\n")
         self.wr("public:\n")
-        self.wr(f'  {cpp_wp_clsname}() : super_t("{cls.qifname})\n')
+        self.wr(f'  {cpp_wp_clsname}() : super_t("{cls.qifname}")\n')
         self.wr("  {\n")
         self.wr("    funcReg(this);\n")
         self.wr("  }\n")
@@ -114,18 +114,19 @@ class CxxHdrGen(BaseSrcGen):
         cls = self.cls
         # cpp_wp_clsname = cls.get_wp_clsname()
         props = cls.properties
-        for propnm, prop in props.items():
+        for name in sorted(props.keys()):
+            prop = props[name]
             typenm = prop.prop_type.type_name
 
             # getter
-            fn = make_prop_signature(mk_get_fname(propnm))
+            fn = make_prop_signature(mk_get_fname(name))
             self.wr(f"  static bool {fn};\n")
 
             if prop.is_readonly():
                 continue
 
             # setter
-            fn = make_prop_signature(mk_set_fname(propnm))
+            fn = make_prop_signature(mk_set_fname(name))
             self.wr(f"  static bool {fn};\n")
 
         self.wr("\n")
@@ -135,7 +136,8 @@ class CxxHdrGen(BaseSrcGen):
         cls = self.cls
         # cxx_wp_clsname = cls.get_wp_clsname()
         mths = cls.methods
-        for nm, mth in mths.items():
+        for name in sorted(mths.keys()):
+            mth = mths[name]
             fn = make_method_signature(mth)
             self.wr(f"  static bool {fn};\n")
         self.wr("\n")

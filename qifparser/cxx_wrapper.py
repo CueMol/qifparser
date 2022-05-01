@@ -22,7 +22,8 @@ class CxxWrapGen(BaseSrcGen):
 
         cxx_wp_clsname = cls.get_wp_clsname()
         mths = cls.methods
-        for nm, mth in mths.items():
+        for nm in sorted(mths.keys()):
+            mth = mths[nm]
             self.wr("\n")
             self.wr(f"// method invocation impl for {nm}\n")
             self.wr("\n")
@@ -42,11 +43,11 @@ class CxxWrapGen(BaseSrcGen):
     def _gen_regfunc_code(self):
         cls = self.cls
 
-        cxx_wp_clsname = cls.get_wp_clsname()
+        cpp_wp_clsname = cls.get_wp_clsname()
 
         self.wr("\n")
         self.wr("// static\n")
-        self.wr("void $cpp_wp_clsname::funcReg(qlib::FuncMap *pmap)\n")
+        self.wr(f"void {cpp_wp_clsname}::funcReg(qlib::FuncMap *pmap)\n")
         self.wr("{\n")
 
         # Class name tag
@@ -56,7 +57,8 @@ class CxxWrapGen(BaseSrcGen):
 
         # Properties
         props = cls.properties
-        for propnm, prop in props.items():
+        for propnm in sorted(props.keys()):
+            prop = props[propnm]
             rprop_opts = prop.modifiers
             getter_name = mk_get_fname(propnm)
             setter_name = mk_set_fname(propnm)
@@ -73,22 +75,23 @@ class CxxWrapGen(BaseSrcGen):
 
             # getter
             self.wr(
-                f'    pmap->putFunc("{getter_name}", &{cxx_wp_clsname}::{getter_name});\n'
+                f'    pmap->putFunc("{getter_name}", &{cpp_wp_clsname}::{getter_name});\n'
             )
 
             if "readonly" not in rprop_opts:
                 # setter
                 self.wr(
-                    f'    pmap->putFunc("{setter_name}", &{cxx_wp_clsname}::{setter_name});\n'
+                    f'    pmap->putFunc("{setter_name}", &{cpp_wp_clsname}::{setter_name});\n'
                 )
 
             self.wr("  }\n")
 
         # Methods
         mths = cls.methods
-        for nm, _ in mths.items():
+        for nm in sorted(mths.keys()):
             mth_name = _mk_mth_fname(nm)
-            self.wr(f'  pmap->putFunc("{mth_name}", &{cxx_wp_clsname}::{mth_name});\n')
+            self.wr(f'  pmap->putFunc("{mth_name}", &{cpp_wp_clsname}::{mth_name});\n')
+
         enum_keys = sorted(cls.enumdefs.keys())
         for nm in enum_keys:
             enumdef = cls.enumdefs[nm]
@@ -106,7 +109,8 @@ class CxxWrapGen(BaseSrcGen):
         self.wr("\n")
 
         # Default value
-        for propnm, prop in props.items():
+        for propnm in sorted(props.keys()):
+            prop = props[propnm]
             rprop_opts = prop.modifiers
             if prop.default_cxx_rval is not None and not prop.is_readonly():
                 vrnt_mth = _make_var_getter_method(prop.prop_type)
@@ -124,9 +128,9 @@ class CxxWrapGen(BaseSrcGen):
         # Register function def
         # modifier = cls.dllexport
         self.wr("\n")
-        self.wr(f"void {cxx_wp_clsname}_funcReg(qlib::FuncMap *pmap)\n")
+        self.wr(f"void {cpp_wp_clsname}_funcReg(qlib::FuncMap *pmap)\n")
         self.wr("{\n")
-        self.wr(f"    {cxx_wp_clsname}::funcReg(pmap);\n")
+        self.wr(f"    {cpp_wp_clsname}::funcReg(pmap);\n")
         self.wr("}\n")
 
         return
@@ -134,9 +138,10 @@ class CxxWrapGen(BaseSrcGen):
     def _gen_property_code(self):
         cls = self.cls
 
-        cxx_wp_clsname = cls.get_wp_clsname()
+        cpp_wp_clsname = cls.get_wp_clsname()
         props = cls.properties
-        for propnm, prop in props.items():
+        for propnm in sorted(props.keys()):
+            prop = props[propnm]
             typenm = prop.prop_type.type_name
             if prop.redirect:
                 cppnm = prop.cxx_getter_name + "/" + prop.cxx_setter_name
@@ -152,7 +157,7 @@ class CxxWrapGen(BaseSrcGen):
 
             # Getter
             self.wr("// static\n")
-            self.wr(f"bool {cxx_wp_clsname}::{make_prop_signature(getter_name)}\n")
+            self.wr(f"bool {cpp_wp_clsname}::{make_prop_signature(getter_name)}\n")
             self.wr("{\n")
 
             mth = _make_getter_mth(prop, "*")
@@ -167,7 +172,7 @@ class CxxWrapGen(BaseSrcGen):
             if prop.is_readonly():
                 continue
             self.wr("// static\n")
-            self.wr(f"bool {cxx_wp_clsname}::{make_prop_signature(setter_name)}\n")
+            self.wr(f"bool {cpp_wp_clsname}::{make_prop_signature(setter_name)}\n")
             self.wr("{\n")
 
             # $mth = makeFakeSetterMth($prop, "dset_$propnm");
@@ -201,10 +206,10 @@ class CxxWrapGen(BaseSrcGen):
             vrnt_mth = _make_var_getter_method(arg)
 
             if arg.type_name == "enum":
-                cxx_wp_clsname = cls.get_wp_clsname()
-                vrnt_mth = f"{vrnt_mth}<{cxx_wp_clsname}>"
+                cpp_wp_clsname = cls.get_wp_clsname()
+                vrnt_mth = f"{vrnt_mth}<{cpp_wp_clsname}>"
 
-            self.wr(f"  {cxxtype} arg{ind}\n")
+            self.wr(f"  {cxxtype} arg{ind};\n")
             self.wr(
                 f'  convTo{vrnt_mth}(arg{ind}, {argsnm}.get({ind}), "{arg.name}");\n'
             )
@@ -235,8 +240,8 @@ class CxxWrapGen(BaseSrcGen):
             vrnt_mth = _make_var_getter_method(rettype)
             type_name = rettype.type_name
             if type_name == "enum":
-                cxx_wp_clsname = cls.get_wp_clsname()
-                vrnt_mth = f"{vrnt_mth}<{cxx_wp_clsname}>"
+                cpp_wp_clsname = cls.get_wp_clsname()
+                vrnt_mth = f"{vrnt_mth}<{cpp_wp_clsname}>"
 
             # Right-hand side
             rhs = f"{thisnm}->{cxxnm}({strargs})"
@@ -282,8 +287,8 @@ class CxxWrapGen(BaseSrcGen):
 
         vrnt_mth = _make_var_getter_method(prop_type)
         if prop_type.type_name == "enum":
-            cxx_wp_clsname = cls.get_wp_clsname()
-            vrnt_mth = f"{vrnt_mth}<{cxx_wp_clsname}>"
+            cpp_wp_clsname = cls.get_wp_clsname()
+            vrnt_mth = f"{vrnt_mth}<{cpp_wp_clsname}>"
 
         if flag == "get":
             # Right-hand side
@@ -313,20 +318,20 @@ class CxxWrapGen(BaseSrcGen):
 
     def _gen_class_loader(self):
         cls = self.cls
-        cxx_wp_clsname = cls.get_wp_clsname()
+        cpp_wp_clsname = cls.get_wp_clsname()
         cxx_cli_clsname = cls.cxx_name
 
         self.wr("\n")
-        self.wr(f"SINGLETON_BASE_IMPL({cxx_wp_clsname});\n")
+        self.wr(f"SINGLETON_BASE_IMPL({cpp_wp_clsname});\n")
         self.wr("\n")
 
         if cls.is_cloneable():
-            self.wr("MC_CLONEABLE_IMPL({cxx_cli_clsname});\n")
+            self.wr(f"MC_CLONEABLE_IMPL({cxx_cli_clsname});\n")
             self.wr("\n")
 
-        self.wr(f"MC_DYNCLASS_IMPL2({cxx_cli_clsname}, {cxx_wp_clsname});\n")
-        self.wr(f"MC_PROP_IMPL2({cxx_cli_clsname}, {cxx_wp_clsname});\n")
-        self.wr(f"MC_INVOKE_IMPL2({cxx_cli_clsname}, {cxx_wp_clsname});\n")
+        self.wr(f"MC_DYNCLASS_IMPL2({cxx_cli_clsname}, {cpp_wp_clsname});\n")
+        self.wr(f"MC_PROP_IMPL2({cxx_cli_clsname}, {cpp_wp_clsname});\n")
+        self.wr(f"MC_INVOKE_IMPL2({cxx_cli_clsname}, {cpp_wp_clsname});\n")
         self.wr("\n")
 
     def generate_impl(self, output_path):
@@ -334,7 +339,7 @@ class CxxWrapGen(BaseSrcGen):
         qif_name = target.qifname
         cls = get_class_def(qif_name)
         cxx_cli_clsname = cls.cxx_name
-        cxx_wp_clsname = cls.get_wp_clsname()
+        cpp_wp_clsname = cls.get_wp_clsname()
         print(f"generating C++ wrapper ({cxx_cli_clsname}) src for {qif_name}")
 
         if cls.is_smart_ptr():
@@ -370,7 +375,7 @@ class CxxWrapGen(BaseSrcGen):
         self.wr("using qlib::LClass;\n")
         self.wr("using qlib::ClassRegistry;\n")
         self.wr("\n")
-        self.wr(f"// XXX {cxx_wp_clsname}\n")
+        self.wr(f"// XXX {cpp_wp_clsname}\n")
 
         self.wr("/////////////////////////////////////\n")
         self.wr(f"// Class loader code for the client class {cxx_cli_clsname}\n")
