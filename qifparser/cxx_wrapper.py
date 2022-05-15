@@ -96,10 +96,16 @@ class CxxWrapGen(BaseSrcGen):
         for nm in enum_keys:
             enumdef = cls.enumdefs[nm]
             self.wr(f"  // Enum def for {nm}\n")
+            # Check enum alias
+            enum_alias = enumdef.enum_alias
+            if enum_alias is not None:
+                if enum_alias not in cls.enumdefs:
+                    raise RuntimeError(f"enum alias {enum_alias} not defined")
+                enumdef = cls.enumdefs[enumdef.enum_alias]
             enums = sorted(enumdef.enum_data.keys())
             for defnm in enums:
-                value = enumdef.enum_data[defnm]
-                self.wr(f'  pmap->putEnumDef("{nm}", "{defnm}", {value});\n')
+                cxx_def = enumdef.enum_data[defnm]
+                self.wr(f'  pmap->putEnumDef("{nm}", "{defnm}", {cxx_def});\n')
         self.wr("\n")
 
         # Generate code for importing super classes
@@ -126,7 +132,6 @@ class CxxWrapGen(BaseSrcGen):
         self.wr("\n")
 
         # Register function def
-        # modifier = cls.dllexport
         self.wr("\n")
         self.wr(f"void {cpp_wp_clsname}_funcReg(qlib::FuncMap *pmap)\n")
         self.wr("{\n")
@@ -297,7 +302,7 @@ class CxxWrapGen(BaseSrcGen):
             self.wr("  LVariant &rval = vargs.retval();\n")
             self.wr("\n")
             # self.wr("  rval.set${vrnt_mth}( ${thisnm}->${cxxnm} );\n")
-            self.wr(f'  setBy{vrnt_mth}( rval, {rhs}, "{prop_name}");\n')
+            self.wr(f'  setBy{vrnt_mth}( rval, {rhs}, "{prop_name}" );\n')
             self.wr("\n")
         elif flag == "set":
             self.wr("\n")

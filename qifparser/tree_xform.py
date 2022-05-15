@@ -154,8 +154,8 @@ class TreeXform(Transformer):
             # print(f"{cxx_name=}")
             target.cxx_name = cxx_name
         elif stmt_name == "dllexport_stmt":
-            # TODO: impl
-            logger.warning("dllexport ignored")
+            logger.debug(f"dllexport: <{target.dllexport}>")
+            target.dllexport = tree[0].children[0].value
         elif stmt_name in self.class_attrib_names:
             # Attributes
             option = stmt_name

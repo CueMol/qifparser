@@ -105,8 +105,7 @@ class CxxHdrGen(BaseSrcGen):
         self.wr("\n")
         self.wr("};\n")
 
-        modifier = ""
-        # $cls->{"dllexport"};
+        modifier = cls.dllexport
         self.wr("\n")
         self.wr(f"{modifier} void {cpp_wp_clsname}_funcReg(qlib::FuncMap *pmap);\n")
 
@@ -116,7 +115,7 @@ class CxxHdrGen(BaseSrcGen):
         props = cls.properties
         for name in sorted(props.keys()):
             prop = props[name]
-            typenm = prop.prop_type.type_name
+            # typenm = prop.prop_type.type_name
 
             # getter
             fn = make_prop_signature(mk_get_fname(name))

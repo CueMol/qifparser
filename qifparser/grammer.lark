@@ -120,7 +120,7 @@ FILE_PATH: /[_0-9a-zA-Z\/\.]+/
 IDENT: CNAME
 SEP: ";"
 CXX_NAME: CNAME ("::" CNAME)*
-ANY_CXX_EXPR: /[^;]+/
+ANY_CXX_EXPR: /[^; \t][^;]*/
 
 COMMENT: "//" /[^\n]*/ NEWLINE
 

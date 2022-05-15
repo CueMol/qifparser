@@ -27,8 +27,6 @@ for fn in $in1_files ; do
     if [ ! -e $in2 ]; then
         continue
     fi    
-    echo "in1: " $in1
-    echo "in2: " $in2
 
     tmpfile1=$(mktemp)
     tmpfile2=$(mktemp)
@@ -37,7 +35,13 @@ for fn in $in1_files ; do
     convert_file $in2 $tmpfile2
     
     #echo $tmpfile1 $tmpfile2
-    diff $tmpfile1 $tmpfile2
+    diff_res=$(diff $tmpfile1 $tmpfile2)
+    if [ -n "$diff_res" ]; then
+        echo "=========="
+        echo "in1: " $in1
+        echo "in2: " $in2
+        diff $tmpfile1 $tmpfile2
+    fi    
     
     rm $tmpfile1 $tmpfile2
 

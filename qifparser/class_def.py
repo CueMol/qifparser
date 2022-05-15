@@ -16,6 +16,7 @@ class ClassDef:
     cli_header_name: str = ""
     cxx_name: str = ""
     input_rel_path: Optional[str] = None
+    dllexport: str = ""
 
     options: List[str] = field(default_factory=list)
     refers: Set[str] = field(default_factory=set)
@@ -79,6 +80,8 @@ class ClassDef:
         return f"{self.qifname}_wrap"
 
     def append_refer_qif(self, qifname):
+        if qifname == self.qifname:
+            return
         if qifname in self.refers:
             return
         logger.debug(f"refer QIF type: {qifname}")
