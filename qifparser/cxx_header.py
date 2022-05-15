@@ -14,13 +14,12 @@ logger = logging.getLogger(__name__)
 
 class CxxHdrGen(BaseSrcGen):
     def generate_impl(self, output_path):
-
         target = self.cls
         qif_name = target.qifname
         cls = get_class_def(qif_name)
         cxx_cli_clsname = cls.cxx_name
         # cxx_wp_clsname = cls.get_wp_clsname()
-        print(f"generating C++ wrapper ({cxx_cli_clsname}) hdr for {qif_name}")
+        logger.info(f"generating C++ wrapper ({cxx_cli_clsname}) hdr for {qif_name}")
 
         self._gen_preamble()
         self._gen_class_decl()

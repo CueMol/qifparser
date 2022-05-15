@@ -5,6 +5,7 @@ from qifparser.tree_xform import TreeXform
 from qifparser.parser import parse_file
 from qifparser.cxx_wrapper import CxxWrapGen
 from qifparser.cxx_header import CxxHdrGen
+from qifparser.cxx_module import CxxModGen
 from qifparser.tree_xform import get_pending_load, remove_pending_load
 
 
@@ -80,6 +81,9 @@ def main():
         gen.generate(output_path)
     elif args.mode == "cxx_hdr":
         gen = CxxHdrGen(result)
+        gen.generate(output_path)
+    elif args.mode == "cxx_mod":
+        gen = CxxModGen(result)
         gen.generate(output_path)
     else:
         raise RuntimeError(f"unknown mode: {args.mode}")

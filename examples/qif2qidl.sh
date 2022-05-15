@@ -12,12 +12,23 @@ sed -e 's/^\#include/import/' $INFILE | \
     sed -E '/^import/ s/</"/' | \
     sed -E '/^import/ s/>/"/' | \
     sed -E '/^import/ s/\.qif/.qidl/' | \
-    sed -E '/[ ]+uuid[ ]+/d' | \
+    sed -E '/^[ ]+uuid[ ]+/d' | \
     sed -E '/^\#[^ ]+/d' > $OUTFILE
 }
 
-XXX=$(cd $INPUT_DIR; find . -name "*.qif")
-for i in $XXX ; do
+file_list=$(cd $INPUT_DIR; find . -name "*.qif")
+for i in $file_list ; do
+    outfname=${i%.*}.qidl
+    INFILE=$INPUT_DIR/$i
+    OUTFILE=$OUTPUT_DIR/$outfname
+    OUTDIR=$(dirname $OUTFILE)
+    mkdir -p $OUTDIR
+    echo $OUTFILE
+    convert_file $INFILE $OUTFILE
+done
+
+file_list=$(cd $INPUT_DIR; find . -name "*.moddef")
+for i in $file_list ; do
     outfname=${i%.*}.qidl
     INFILE=$INPUT_DIR/$i
     OUTFILE=$OUTPUT_DIR/$outfname

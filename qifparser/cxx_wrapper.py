@@ -343,7 +343,7 @@ class CxxWrapGen(BaseSrcGen):
         cls = get_class_def(qif_name)
         cxx_cli_clsname = cls.cxx_name
         cpp_wp_clsname = cls.get_wp_clsname()
-        print(f"generating C++ wrapper ({cxx_cli_clsname}) src for {qif_name}")
+        logger.info(f"generating C++ wrapper ({cxx_cli_clsname}) src for {qif_name}")
 
         if cls.is_smart_ptr():
             cxx_cli_clsname = f"qlib::LScrSp<{cxx_cli_clsname}>"
