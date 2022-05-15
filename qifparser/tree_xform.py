@@ -247,9 +247,11 @@ class TreeXform(Transformer):
             assert item.data == "method_arg"
             assert len(item.children) >= 1
             arg = item.children[0]
-            if len(item.children) >= 2:
-                name = item.children[1]
-                arg.name = name.value
+            # if len(item.children) >= 2:
+            #     name = item.children[1]
+            #     arg.name = name.value
+            # XXX: perl ver compat
+            arg.name = ""
             args.append(arg)
             # print(f"method_arg {arg=}")
         return args

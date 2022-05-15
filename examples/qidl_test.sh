@@ -21,12 +21,11 @@ $PYTHON $TOP_DIR/qifparser/main.py \
         --top_builddir $OUTPUT_DIR
 }
 
-XXX=$(cd $INPUT_DIR; find . -name "*.qidl")
-for i in $XXX ; do
+file_list=$(cd $INPUT_DIR; find . -name "*.qidl")
+for i in $file_list ; do
     src_outfname=${i%.*}_wrap.cpp
     INFILE=$i
     convert_file $INFILE $src_outfname "cxx_src"
     hdr_outfname=${i%.*}_wrap.hpp
     convert_file $INFILE $hdr_outfname "cxx_hdr"
-    break
 done
