@@ -7,11 +7,14 @@ convert_file () {
 INFILE=$1
 OUTFILE=$2
 
-sed -e 's/^\#include/import/' $INFILE | \
+cat  $INFILE | \
+    tr -d "\r" | \
+    sed -e 's/^\#[ ]*include/import/' | \
     sed -E '/^import/ s/$/;/' | \
     sed -E '/^import/ s/</"/' | \
     sed -E '/^import/ s/>/"/' | \
     sed -E '/^import/ s/\.qif/.qidl/' | \
+    sed -E '/^import.*config\.h/d' | \
     sed -E '/^[ ]+uuid[ ]+/d' | \
     sed -E '/[a-zA-Z0-9_]+[ ]+uuid[ ]+/s/[ ]+uuid[^;]+//' | \
     sed -E '/^\#[^ ]+/d' > $OUTFILE
@@ -38,3 +41,10 @@ for i in $file_list ; do
     echo $OUTFILE
     convert_file $INFILE $OUTFILE
 done
+
+# remove unused files
+rm $OUTPUT_DIR/qlib/ClassA.qidl
+rm $OUTPUT_DIR/qlib/ClassB.qidl
+rm $OUTPUT_DIR/qlib/ClassS.qidl
+rm $OUTPUT_DIR/qlib/Vector4D.qidl
+

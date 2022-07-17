@@ -48,6 +48,7 @@ setter_name: IDENT
 prop_modif_list: prop_modif ("," prop_modif)*
 prop_modif: "readonly" -> readonly
           | "nopersist" -> nopersist
+          | "redirect" -> redirect
 
 
 /////
