@@ -1,18 +1,20 @@
 import logging
-from qifparser.parser import get_class_def
+
 from qifparser._version import __version__
 from qifparser.base_srcgen import BaseSrcGen
 from qifparser.cxx_wrapper import (
+    make_method_signature,
+    make_prop_signature,
     mk_get_fname,
     mk_set_fname,
-    make_prop_signature,
-    make_method_signature,
 )
+from qifparser.parser import get_class_def
 
 logger = logging.getLogger(__name__)
 
 # TODO: config
 common_inc = "<common.h>"
+
 
 class CxxModGen(BaseSrcGen):
     def _gen_preamble(self):
@@ -23,9 +25,43 @@ class CxxModGen(BaseSrcGen):
         self.wr(f"#include {common_inc}\n")
         self.wr("\n")
 
+        self.wr("#include <qlib/ClassRegistry.hpp>\n")
+        self.wr("#include <qlib/LVariant.hpp>\n")
+        self.wr("\n")
+
+        self.wr("\n")
+        self.wr("using qlib::LString;\n")
+        self.wr("using qlib::LVariant;\n")
+        self.wr("using qlib::LVarArgs;\n")
+        self.wr("using qlib::LClass;\n")
+        self.wr("using qlib::ClassRegistry;\n")
+        self.wr("\n")
+
     def generate_impl(self, output_path):
         target = self.cls
-        qif_name = target.qifname
-        cls = get_class_def(qif_name)
+        curmod = target.name
+        print(target)
         self._gen_preamble()
-        
+
+        for qif in target.qifs:
+            ref_cls = get_class_def(qif)
+            self.wr(f'#include "{ref_cls.get_wp_hdr_fname()}"\n')
+        self.wr("\n")
+
+        self.wr(f"void {curmod}_regClasses()\n")
+        self.wr("{\n")
+        for qif in target.qifs:
+            cls = get_class_def(qif)
+            cpp_cli_clsname = cls.cxx_name
+            self.wr(f"  {cpp_cli_clsname}::regClass();\n")
+        self.wr("}\n")
+        self.wr("\n")
+
+        self.wr(f"void {curmod}_unregClasses()\n")
+        self.wr("{\n")
+        for qif in target.qifs:
+            cls = get_class_def(qif)
+            cpp_cli_clsname = cls.cxx_name
+            self.wr(f"  {cpp_cli_clsname}::unregClass();\n")
+        self.wr("}\n")
+        self.wr("\n")

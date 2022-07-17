@@ -151,3 +151,11 @@ class EnumDef:
     enum_name: Optional[str] = None
     enum_data: Dict[str, str] = field(default_factory=dict)
     enum_alias: Optional[str] = None
+
+
+@dataclass
+class ModuleDef:
+    name: str
+    qifs: List[str] = field(default_factory=list)
+    init: Optional[str] = None
+    fini: Optional[str] = None

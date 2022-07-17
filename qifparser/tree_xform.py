@@ -1,9 +1,15 @@
-import logging
-from lark import Transformer, Token
 from pathlib import Path
+import logging
+from lark import Token, Transformer
 
-# from qifparser.parser import parse_file
-from qifparser.class_def import ClassDef, PropertyDef, TypeObj, MethodDef, EnumDef
+from qifparser.class_def import (
+    ClassDef,
+    EnumDef,
+    MethodDef,
+    ModuleDef,
+    PropertyDef,
+    TypeObj,
+)
 
 logger = logging.getLogger(__name__)
 _pending_load = []
@@ -36,7 +42,7 @@ def remove_quot(inp):
 
 
 class TreeXform(Transformer):
-    def __init__(self, target_file, top_srcdir, include_paths=None, moddef_mode=False):
+    def __init__(self, target_file, top_srcdir, include_paths=None):
         input_dir = target_file.parent
         self.target_file = target_file
         self.top_srcdir = top_srcdir
@@ -44,7 +50,6 @@ class TreeXform(Transformer):
         self.include_paths = [str(input_dir)]
         if include_paths is not None:
             self.include_paths.extend(include_paths)
-        self.moddef_mode = moddef_mode
 
     def start(self, tree):
         class_def = None
@@ -60,16 +65,18 @@ class TreeXform(Transformer):
                 else:
                     raise RuntimeError("more than one runtime_class defs")
 
-        if self.moddef_mode:
-            if mod_def is None:
-                raise RuntimeError("no module definition found")
-            else:
-                return mod_def
+            if isinstance(val, ModuleDef):
+                if mod_def is None:
+                    mod_def = val
+                else:
+                    raise RuntimeError("more than one module defs")
+
+        if class_def is not None and mod_def is None:
+            return class_def
+        elif class_def is None and mod_def is not None:
+            return mod_def
         else:
-            if class_def is None:
-                raise RuntimeError("no runtime_class definition found")
-            else:
-                return class_def
+            raise RuntimeError("no module definition found")
 
     def include_stmt(self, tree):
         # print(f"include_stmt: {tree}")
@@ -309,3 +316,42 @@ class TreeXform(Transformer):
     #     print(f"class_attribute: {tree[0].data}")
     #     # print(f"class_attribute: {dir(tree[0])}")
     #     return tree[0].data
+
+    def moddef_stmt(self, tree):
+        # print(f"moddef_stmt: {tree}")
+        name = tree[0].value
+        print(f"name: {name}")
+        target = ModuleDef(name=name)
+        for item in tree[1:]:
+            assert item.data == "mod_spec_stmt"
+            node = item.children
+            if node[0].data == "mod_init_stmt":
+                self.parse_mod_init_stmt(target, node[0].children)
+            elif node[0].data == "mod_fini_stmt":
+                self.parse_mod_fini_stmt(target, node[0].children)
+            elif node[0].data == "mod_load_stmt":
+                self.parse_mod_load_stmt(target, node[0].children)
+            else:
+                raise RuntimeError(f"unknown node: {node}")
+        return target
+
+    # def mod_spec_stmt(self, tree):
+    #     print(f"mod_sepc_stmt: {tree}")
+
+    def parse_mod_init_stmt(self, target, tree):
+        print(f"mod_init_stmt: {tree}")
+        name = tree[0].value
+        print(f"name: {name}")
+        target.init = name
+
+    def parse_mod_fini_stmt(self, target, tree):
+        print(f"mod_fini_stmt: {tree}")
+        name = tree[0].value
+        print(f"name: {name}")
+        target.fini = name
+
+    def parse_mod_load_stmt(self, target, tree):
+        print(f"mod_load_stmt: {tree}")
+        name = tree[0].value
+        print(f"name: {name}")
+        target.qifs.append(name)

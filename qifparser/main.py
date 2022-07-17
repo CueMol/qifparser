@@ -1,13 +1,12 @@
-import logging
 import argparse
+import logging
 from pathlib import Path
-from qifparser.tree_xform import TreeXform
-from qifparser.parser import parse_file
-from qifparser.cxx_wrapper import CxxWrapGen
+
 from qifparser.cxx_header import CxxHdrGen
 from qifparser.cxx_module import CxxModGen
-from qifparser.tree_xform import get_pending_load, remove_pending_load
-
+from qifparser.cxx_wrapper import CxxWrapGen
+from qifparser.parser import parse_file
+from qifparser.tree_xform import TreeXform, get_pending_load, remove_pending_load
 
 logger = logging.getLogger(__name__)
 

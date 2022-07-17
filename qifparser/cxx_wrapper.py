@@ -341,12 +341,12 @@ class CxxWrapGen(BaseSrcGen):
         target = self.cls
         qif_name = target.qifname
         cls = get_class_def(qif_name)
-        cxx_cli_clsname = cls.cxx_name
+        cpp_cli_clsname = cls.cxx_name
         cpp_wp_clsname = cls.get_wp_clsname()
-        logger.info(f"generating C++ wrapper ({cxx_cli_clsname}) src for {qif_name}")
+        logger.info(f"generating C++ wrapper ({cpp_cli_clsname}) src for {qif_name}")
 
         if cls.is_smart_ptr():
-            cxx_cli_clsname = f"qlib::LScrSp<{cxx_cli_clsname}>"
+            cpp_cli_clsname = f"qlib::LScrSp<{cpp_cli_clsname}>"
 
         self._gen_preamble()
 
@@ -381,13 +381,13 @@ class CxxWrapGen(BaseSrcGen):
         self.wr(f"// XXX {cpp_wp_clsname}\n")
 
         self.wr("/////////////////////////////////////\n")
-        self.wr(f"// Class loader code for the client class {cxx_cli_clsname}\n")
+        self.wr(f"// Class loader code for the client class {cpp_cli_clsname}\n")
         self._gen_class_loader()
         self.wr("\n")
 
         self.wr("/////////////////////////////////////\n")
         self.wr("//\n")
-        self.wr(f"// Wrapper class for {cxx_cli_clsname}\n")
+        self.wr(f"// Wrapper class for {cpp_cli_clsname}\n")
         self.wr("//\n")
         self.wr("\n")
 
