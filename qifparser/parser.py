@@ -1,6 +1,9 @@
 import logging
-from lark import Lark
 from pathlib import Path
+
+from lark import Lark
+
+from qifparser.class_def import ClassDef
 
 logger = logging.getLogger(__name__)
 _here = Path(__file__).parent
@@ -43,10 +46,10 @@ def parse_file(xformer):
     tree = parser.parse(text)
 
     result = xformer.transform(tree)
-    clsname = result.curcls
-
-    file_db[input_path] = clsname
-    class_db[clsname] = result
+    if isinstance(result, ClassDef):
+        clsname = result.curcls
+        file_db[input_path] = clsname
+        class_db[clsname] = result
 
     logger.debug(f"=== parsing file DONE: {input_path} ===")
     return result

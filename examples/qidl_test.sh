@@ -27,8 +27,13 @@ if [ -z "$file_list" ]; then
 fi
 
 for i in $file_list ; do
-    src_outfname=${i%.*}_wrap.cpp
     INFILE=$i
+    if [[ $INFILE =~ _mod\.qidl ]]; then
+        src_outfname=${i%.*}.cpp
+        convert_file $INFILE $src_outfname "cxx_mod"
+        continue
+    fi
+    src_outfname=${i%.*}_wrap.cpp
     convert_file $INFILE $src_outfname "cxx_src"
     hdr_outfname=${i%.*}_wrap.hpp
     convert_file $INFILE $hdr_outfname "cxx_hdr"

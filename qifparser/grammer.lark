@@ -48,6 +48,7 @@ setter_name: IDENT
 prop_modif_list: prop_modif ("," prop_modif)*
 prop_modif: "readonly" -> readonly
           | "nopersist" -> nopersist
+          | "redirect" -> redirect
 
 
 /////
@@ -90,9 +91,13 @@ include_stmt: "import" "\"" FILE_PATH "\""
 // MODULE statement
 moddef_stmt: "module" IDENT "{" mod_spec_stmt* "}"
 
-mod_spec_stmt: "init" CXX_NAME "()" SEP
-             | "fini" CXX_NAME "()" SEP
-             | IDENT mod_load_opt? SEP
+mod_spec_stmt: mod_init_stmt
+             | mod_fini_stmt
+             | mod_load_stmt
+
+mod_init_stmt: "init" CXX_NAME "()" SEP
+mod_fini_stmt: "fini" CXX_NAME "()" SEP
+mod_load_stmt: IDENT mod_load_opt? SEP
 
 mod_load_opt: "uuid" UUID_TOKEN
 
